@@ -561,7 +561,7 @@ package main
 import (
     "fmt"
     "path/filepath"
-    "github.com/hicham-amazigh/jpm/internal/core"
+    "github.com/KhalidEchchahid/go-jpm/internal/core"
     "github.com/spf13/cobra"
 )
 

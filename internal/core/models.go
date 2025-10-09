@@ -1,0 +1,14 @@
+package core
+
+// Dependency represents a declared Maven/Gradle dependency entry. It mirrors
+// the common coordinates found in pom.xml and Gradle build descriptors so that
+// adapters can return a unified shape to the CLI.
+type Dependency struct {
+	GroupID    string // Maven groupId or Gradle group coordinate.
+	ArtifactID string // Maven artifactId or Gradle name coordinate.
+	Version    string // Resolved version (after property interpolation when possible).
+	Type       string // Packaging / type hint (e.g. "jar", "pom").
+	Scope      string // Dependency scope such as "compile" or "test".
+	Classifier string // Optional classifier for shaded sources, javadoc, etc.
+	Optional   bool   // Whether the dependency is marked as optional.
+}

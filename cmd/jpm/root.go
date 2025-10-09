@@ -4,6 +4,10 @@ import (
 	"github.com/spf13/cobra"
 )
 
+// root.go defines the top-level JPM command and global flags that apply to all
+// subcommands. The Cobra root command is intentionally lightweight—its primary
+// job is to register shared flags and delegate real work to child commands.
+
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "jpm",

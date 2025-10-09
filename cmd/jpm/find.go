@@ -4,9 +4,14 @@ import (
 	"fmt"
 	"path/filepath"
 
-	"github.com/hicham-amazigh/jpm/internal/core"
+	"github.com/KhalidEchchahid/go-jpm/internal/core"
+	"github.com/KhalidEchchahid/go-jpm/internal/inspectors"
 	"github.com/spf13/cobra"
 )
+
+// find.go exposes "jpm module find", a read-only helper that enumerates module
+// names for a given project path. The command leans on the inspector factory so
+// that support for new build tools automatically flows through here.
 
 // findCmd represents the find command
 var findCmd = &cobra.Command{
@@ -22,7 +27,8 @@ var findCmd = &cobra.Command{
 			return err
 		}
 
-		// Get project root
+		// Resolve the project root to an absolute path to keep inspector
+		// implementations free from working-directory assumptions.
 		projectRoot := "."
 		if len(args) > 0 {
 			projectRoot = args[0]
@@ -33,19 +39,21 @@ var findCmd = &cobra.Command{
 		}
 
 		// Create inspector
-		factory := core.NewInspectorFactory()
+		factory := inspectors.NewFactory()
 		inspector, err := factory.ForTool(buildTool)
 		if err != nil {
 			return err
 		}
 
-		// List modules
+		// List modules using the selected inspector. Each adapter encapsulates how
+		// a given build tool models multi-module projects.
 		modules, err := inspector.ListModules(projectRoot)
 		if err != nil {
 			return err
 		}
 
-		// Print results
+		// Print results in a human-friendly list. The formatter intentionally keeps
+		// output stable to make CLI snapshots testable.
 		fmt.Println("→ found:")
 		if len(modules) == 0 {
 			fmt.Println("  (none)")

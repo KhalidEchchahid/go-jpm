@@ -21,7 +21,8 @@ This document provides a comprehensive overview of the current sprint progress, 
 We've successfully established a solid foundation for JPM with a clean, modular architecture:
 
 #### Go Module Setup
-- Initialized Go module: `github.com/hicham-amazigh/jpm`
+
+- Initialized Go module: `github.com/KhalidEchchahid/go-jpm`
 - Set up proper directory structure following Go best practices:
   - `cmd/jpm/` - CLI entry point and command definitions
   - `internal/core/` - Core business logic and interfaces

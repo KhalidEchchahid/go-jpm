@@ -1,4 +1,4 @@
-module github.com/hicham-amazigh/jpm
+module github.com/KhalidEchchahid/go-jpm
 
 go 1.25.1
 

@@ -6,7 +6,7 @@
 
 ---
 
-## 🚀 Overview
+## Overview
 
 **JPM (Java Project Manager)** is an **open-source CLI tool** that simplifies managing Java projects.
 It unifies workflows across build systems (**Maven** and **Gradle**) and provides commands to:
@@ -18,15 +18,15 @@ It unifies workflows across build systems (**Maven** and **Gradle**) and provide
 
 ---
 
-## ✨ Features
+## Features
 
-* **Dependency Management** *(planned)*
+* **Dependency Management**
 
-    * `jpm deps add` → Add dependencies safely (with version selection & backups)
-    * `jpm deps remove` → Remove dependencies (with usage checks)
-    * `jpm deps upgrade` / `downgrade` → Bump dependency versions
-    * `jpm deps show` → Display declared or unused dependencies
-    * `jpm deps tree` → View full dependency tree
+    * `jpm deps show` → Display declared dependencies *(Maven support today)*
+    * *(planned)* `jpm deps add` → Add dependencies safely (with version selection & backups)
+    * *(planned)* `jpm deps remove` → Remove dependencies (with usage checks)
+    * *(planned)* `jpm deps upgrade` / `downgrade` → Bump dependency versions
+    * *(planned)* `jpm deps tree` → View full dependency tree
 
 * **Module Management**
 
@@ -50,7 +50,7 @@ It unifies workflows across build systems (**Maven** and **Gradle**) and provide
 
 ---
 
-## 🏗 Project Structure
+## Project Structure
 
 ```
 jpm/
@@ -60,6 +60,7 @@ jpm/
 │   ├─ adapters/
 │   │   ├─ maven/         # Maven adapter (POM parsing & editing)
 │   │   └─ gradle/        # Gradle adapter (build.gradle support)
+│   ├─ inspectors/        # Factory for resolving build tool inspectors
 │   └─ init/              # Project initializers (Spring, Micronaut…)
 ├─ legacy-java/           # Original Java implementation
 ├─ go.mod                 # Go module definition
@@ -69,12 +70,12 @@ jpm/
 
 ---
 
-## 🔧 Installation
+## Installation
 
 ### Option 1: Install from Source
 
 ```bash
-git clone https://github.com/hicham-amazigh/jpm.git
+git clone https://github.com/KhalidEchchahid/go-jpm.git
 cd jpm
 go build -o jpm ./cmd/jpm
 ./jpm --help
@@ -82,16 +83,22 @@ go build -o jpm ./cmd/jpm
 
 ### Option 2: Install Pre-built Binary
 
-*(Coming soon)*
+Coming soon
 
 ---
 
-## 💡 Usage Examples
+## Usage Examples
 
 List project modules:
 
 ```bash
 jpm module find --build-tool maven .
+```
+
+Show declared dependencies:
+
+```bash
+jpm deps show --build-tool maven .
 ```
 
 ---
@@ -104,6 +111,6 @@ jpm module find --build-tool maven .
 
 ---
 
-## 📝 License
+## License
 
 This project is released under the [MIT License](LICENSE).

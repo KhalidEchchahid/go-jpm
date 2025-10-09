@@ -6,7 +6,10 @@ import "fmt"
 type BuildTool int
 
 const (
+	// Maven designates Apache Maven projects that rely on pom.xml descriptors.
 	Maven BuildTool = iota
+	// Gradle designates Gradle projects. The Gradle adapter is currently a stub
+	// but is kept in the enum so the CLI can validate user intent consistently.
 	Gradle
 )
 
@@ -22,7 +25,9 @@ func (bt BuildTool) String() string {
 	}
 }
 
-// ParseBuildTool parses a string into a BuildTool
+// ParseBuildTool parses a string into a BuildTool. It returns a typed value plus
+// an error describing unsupported entries so callers can surface helpful CLI
+// feedback.
 func ParseBuildTool(s string) (BuildTool, error) {
 	switch s {
 	case "maven":

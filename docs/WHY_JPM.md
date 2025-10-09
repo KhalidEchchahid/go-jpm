@@ -260,7 +260,7 @@ wget -qO- https://jpm.dev/install.sh | sh
 powershell -c "iwr -useb https://jpm.dev/install.ps1 | iex"
 
 # From source (any platform)
-git clone https://github.com/hicham-amazigh/jpm.git
+git clone https://github.com/KhalidEchchahid/go-jpm.git
 cd jpm
 go build -o jpm ./cmd/jpm
 ```
@@ -320,7 +320,7 @@ All JPM commands are backed by a Go API that can be:
 
 ```go
 // Example: Use JPM as a library
-import "github.com/hicham-amazigh/jpm/internal/core"
+import "github.com/KhalidEchchahid/go-jpm/internal/core"
 
 factory := core.NewInspectorFactory()
 inspector, _ := factory.ForTool(core.Maven)
