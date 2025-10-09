@@ -53,13 +53,13 @@ var findCmd = &cobra.Command{
 		}
 
 		// Print results in a human-friendly list. The formatter intentionally keeps
-		// output stable to make CLI snapshots testable.
-		fmt.Println("→ found:")
+		// output stable while adding light ANSI color styling for TTY users.
+		fmt.Println(headerStyle("→ found:"))
 		if len(modules) == 0 {
-			fmt.Println("  (none)")
+			fmt.Println(subduedStyle("  (none)"))
 		} else {
 			for i, module := range modules {
-				fmt.Printf("  %d) %s\n", i+1, module)
+				fmt.Printf("  %s %s\n", formatIndex(i+1), primaryTextStyle(module))
 			}
 		}
 

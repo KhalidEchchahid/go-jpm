@@ -46,14 +46,14 @@ var depsShowCmd = &cobra.Command{
 			return err
 		}
 
-		fmt.Println("→ dependencies:")
+		fmt.Println(headerStyle("→ dependencies:"))
 		if len(deps) == 0 {
-			fmt.Println("  (none)")
+			fmt.Println(subduedStyle("  (none)"))
 			return nil
 		}
 
 		for i, dep := range deps {
-			fmt.Printf("  %d) %s\n", i+1, formatDependency(dep))
+			fmt.Printf("  %s %s\n", formatIndex(i+1), primaryTextStyle(formatDependency(dep)))
 		}
 
 		return nil
