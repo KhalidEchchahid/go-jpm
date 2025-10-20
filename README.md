@@ -11,7 +11,7 @@
 **JPM (Java Project Manager)** is an **open-source CLI tool** that simplifies managing Java projects.
 It unifies workflows across build systems (**Maven** and **Gradle**) and provides commands to:
 
-* Manage dependencies (**add, remove, upgrade, downgrade, show**)
+* Manage dependencies (**add, remove, upgrade, downgrade, ls**)
 * Inspect projects (**list modules, display dependency tree, detect unused deps**)
 * Initialize new projects with common frameworks (**Spring Boot, Micronaut, Dropwizard, Plain Java**)
 * Package as a **single binary** for easy distribution
@@ -22,15 +22,15 @@ It unifies workflows across build systems (**Maven** and **Gradle**) and provide
 
 * **Dependency Management**
 
-    * `jpm deps show` → Display declared dependencies *(Maven support today)*
-    * *(planned)* `jpm deps add` → Add dependencies safely (with version selection & backups)
+    * `jpm deps ls` → Display declared dependencies *(Maven support today)*
+    * `jpm deps tree` → View full dependency tree *(Maven support today)*
+    * `jpm deps add` → Add dependencies safely (Maven-only preview with dry-run support)
     * *(planned)* `jpm deps remove` → Remove dependencies (with usage checks)
     * *(planned)* `jpm deps upgrade` / `downgrade` → Bump dependency versions
-    * *(planned)* `jpm deps tree` → View full dependency tree
 
 * **Module Management**
 
-    * `jpm module find` → List modules in multi-module projects *(Maven only)*
+    * `jpm module ls` → List modules in multi-module projects *(Maven only)*
 
 * **Project Initialization** *(planned)*
 
@@ -47,6 +47,8 @@ It unifies workflows across build systems (**Maven** and **Gradle**) and provide
 * **Distribution**
 
     * Single binary executable (`./jpm`)
+
+> 🔎 Command naming follows the [CLI Command Conventions](docs/CLI_COMMAND_CONVENTIONS.md) guide so that read-only actions consistently use `ls`.
 
 ---
 
@@ -92,13 +94,37 @@ Coming soon
 List project modules:
 
 ```bash
-jpm module find --build-tool maven .
+jpm module ls --build-tool maven .
 ```
 
-Show declared dependencies:
+List declared dependencies:
 
 ```bash
-jpm deps show --build-tool maven .
+jpm deps ls --build-tool maven .
+```
+
+Show the dependency tree (requires Maven on PATH):
+
+```bash
+jpm deps tree --build-tool maven .
+```
+
+Add a dependency (auto-resolves the latest version when omitted):
+
+```bash
+jpm deps add com.squareup.okhttp3:okhttp --build-tool maven --scope test
+```
+
+Preview the change without touching pom.xml:
+
+```bash
+jpm deps add org.assertj:assertj-core --dry-run
+```
+
+Discover available versions before choosing one:
+
+```bash
+jpm deps add org.junit.jupiter:junit-jupiter --list-versions
 ```
 
 ---

@@ -7,7 +7,7 @@ import (
 )
 
 // TestFormatDependency verifies the human-readable rendering used by
-// "jpm deps show" so that CLI output stays stable as new qualifiers are added.
+// "jpm deps ls" so that CLI output stays stable as new qualifiers are added.
 func TestFormatDependency(t *testing.T) {
 	cases := []struct {
 		name string

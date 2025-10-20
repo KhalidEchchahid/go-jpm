@@ -16,7 +16,7 @@
 
 | Scenario | Vanilla Maven/Gradle | JPM (Current) | Assessment |
 |----------|----------------------|---------------|------------|
-| List Maven modules | `mvn help:evaluate -Dexpression=project.modules` (awkward output) | `jpm module find` (clean list) | JPM wins on UX, parity on correctness. |
+| List Maven modules | `mvn help:evaluate -Dexpression=project.modules` (awkward output) | `jpm module ls` (clean list) | JPM wins on UX, parity on correctness. |
 | List Gradle modules | `gradle projects` | Not supported | JPM loses; messaging gap must be closed. |
 | Add dependency | Manual XML/DSL editing | Not supported | JPM loses. |
 | Show dependency tree | Built-in (`mvn dependency:tree`, `gradle dependencies`) | Not supported | JPM loses. |

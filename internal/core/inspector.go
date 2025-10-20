@@ -10,4 +10,8 @@ type ProjectInspector interface {
 	// ListDependencies returns the declared dependencies in the project
 	// definition. Read operations rely on this to render "jpm deps show".
 	ListDependencies(projectRoot string) ([]Dependency, error)
+
+	// DependencyTree returns a hierarchical representation of the project's
+	// dependencies, including transitive nodes when available.
+	DependencyTree(projectRoot string) (*DependencyTree, error)
 }

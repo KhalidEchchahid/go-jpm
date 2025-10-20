@@ -10,7 +10,7 @@
 
 | Layer | Responsibility | Current Status | Observations |
 |-------|----------------|----------------|--------------|
-| CLI (`cmd/jpm`) | Command wiring, flag parsing, user output | Implemented (root + module find) | Cobra usage is conventional; however, there is no shared error-handling strategy (e.g., structured logging). |
+| CLI (`cmd/jpm`) | Command wiring, flag parsing, user output | Implemented (root + module ls) | Cobra usage is conventional; however, there is no shared error-handling strategy (e.g., structured logging). |
 | Core (`internal/core`) | Domain types, interfaces, factories | Implemented | Clean separation, but lacks validation helpers (e.g., path sanity checks). Factory returns errors for unsupported tools, which is good. |
 | Adapters (`internal/adapters`) | Build tool-specific logic | Maven adapter implemented; Gradle stub only | Maven logic relies on regex; maintainable for read operations but fragile for future writes. Gradle path is entirely missing. |
 | Init (`internal/init`) | Project scaffolding | Empty placeholders | No functionality; creates perception of unfinished surface area. |
@@ -59,36 +59,41 @@
 - Configures `--verbose` and `--debug` flags but never reads them. Need logging plumbing to avoid misleading UX.
 - Long description is static; consider dynamic injection of version/build metadata.
 
-### 4.2 Module Command (`module.go`) & Find Command (`find.go`)
-- Parameter handling is straightforward; path normalization uses `filepath.Abs` but doesnt call `filepath.Clean` or validate directory existence.
+### 4.2 Module Command (`module.go`) & Ls Command (`module_ls.go`)
+
+- Parameter handling is straightforward; path normalization uses `filepath.Abs` but doesn't call `filepath.Clean` or validate directory existence.
 - Output formatting is user-friendly (indexed list). No color/highlight support yet.
 - Error handling returns raw errors to Cobra, yielding default messages without context or exit-code consistency.
 
 **Missing:**
-- Tests for command execution.  
-- Integration with `context.Context` for cancellation/timeouts.  
+
+- Tests for command execution.
+- Integration with `context.Context` for cancellation/timeouts.
 - Hook for machine-readable output (`--json`).
 
 ---
 
 ## 5. Build & Tooling
-- `go.mod` exists with Cobra dependency pinned. No tooling for linting (`golangci-lint`) or formatting beyond `gofmt`.  
-- No CI configuration present; risk of regressions once multiple contributors join.  
+
+- `go.mod` exists with Cobra dependency pinned. No tooling for linting (`golangci-lint`) or formatting beyond `gofmt`.
+- No CI configuration present; risk of regressions once multiple contributors join.
 - Binary builds cleanly but lacks version embedding (e.g., via `-ldflags "-X main.version=..."`).
 
 ---
 
 ## 6. Testing & Quality
-- **Automated Tests:** None. This is the largest technical debt item.  
-- **Manual Testing:** Only `module find` against `legacy-java/` path has been executed.  
-- **Observability:** No logging, telemetry, or error categorization.  
+
+- **Automated Tests:** None. This is the largest technical debt item.
+- **Manual Testing:** Only `module ls` against `legacy-java/` path has been executed.
+- **Observability:** No logging, telemetry, or error categorization.
 - **Code Comments:** Minimal but adequate for public functions. No package-level documentation.
 
 ---
 
 ## 7. Documentation State
-- README communicates Go toolchain usage; however, it still advertises unimplemented features as planned.  
-- No in-repo design docs besides high-level notes.  
+
+- README communicates Go toolchain usage; however, it still advertises unimplemented features as planned.
+- No in-repo design docs besides high-level notes.
 - End-user docs do not clarify Gradle limitation clearly enough.
 
 ---
@@ -118,4 +123,5 @@
 ---
 
 ## 9. Summary
+
 The Go-based JPM implementation has a clean skeleton and delivers basic Maven module discovery. However, it is fragile (regex parsing), lacks automated validation, and does not yet fulfill the “unified Maven/Gradle” promise. Upcoming work should focus on hardening existing features before expanding scope.

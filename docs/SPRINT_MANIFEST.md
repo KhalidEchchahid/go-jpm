@@ -439,6 +439,7 @@ When adding/removing dependencies, we need to preserve:
 **Estimated Effort:** 5-8 story points
 
 **Tasks:**
+
 - [ ] Implement `jpm deps show` command
   - Parse `<dependencies>` section from POM
   - Display in tree or table format

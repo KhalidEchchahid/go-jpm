@@ -5,7 +5,7 @@ import (
 )
 
 // module.go declares the parent "module" command. It groups module-related
-// subcommands so that the CLI can expose operations like "jpm module find" in a
+// subcommands so that the CLI can expose operations like "jpm module ls" in a
 // discoverable hierarchy.
 
 // moduleCmd represents the module command

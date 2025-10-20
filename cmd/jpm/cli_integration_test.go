@@ -11,8 +11,8 @@ import (
 // These integration tests exercise the Cobra command wiring against the
 // java-legacy fixtures to ensure flag parsing and output formatting behave the
 // same way the manual CLI does.
-func TestCLI_ModuleFindIntegration(t *testing.T) {
-	output, err := executeCommand(t, "module", "find", filepath.Join("..", "..", "java-legacy", "JPM"))
+func TestCLI_ModuleLsIntegration(t *testing.T) {
+	output, err := executeCommand(t, "module", "ls", filepath.Join("..", "..", "java-legacy", "JPM"))
 	if err != nil {
 		t.Fatalf("command returned error: %v\noutput: %s", err, output)
 	}
@@ -25,9 +25,9 @@ func TestCLI_ModuleFindIntegration(t *testing.T) {
 	}
 }
 
-func TestCLI_DepsShowIntegration(t *testing.T) {
+func TestCLI_DepsLsIntegration(t *testing.T) {
 	cliModule := filepath.Join("..", "..", "java-legacy", "JPM", "jpm-cli")
-	output, err := executeCommand(t, "deps", "show", cliModule)
+	output, err := executeCommand(t, "deps", "ls", cliModule)
 	if err != nil {
 		t.Fatalf("command returned error: %v\noutput: %s", err, output)
 	}
@@ -43,8 +43,8 @@ func TestCLI_DepsShowIntegration(t *testing.T) {
 	}
 }
 
-func TestCLI_DepsShowAggregatorHasNoDeps(t *testing.T) {
-	output, err := executeCommand(t, "deps", "show", filepath.Join("..", "..", "java-legacy", "JPM"))
+func TestCLI_DepsLsAggregatorHasNoDeps(t *testing.T) {
+	output, err := executeCommand(t, "deps", "ls", filepath.Join("..", "..", "java-legacy", "JPM"))
 	if err != nil {
 		t.Fatalf("command returned error: %v\noutput: %s", err, output)
 	}
@@ -54,8 +54,24 @@ func TestCLI_DepsShowAggregatorHasNoDeps(t *testing.T) {
 	}
 }
 
+func TestCLI_DepsTreeIntegration(t *testing.T) {
+	cliModule := filepath.Join("..", "..", "java-legacy", "JPM", "jpm-cli")
+	output, err := executeCommand(t, "deps", "tree", cliModule)
+	if err != nil {
+		t.Fatalf("command returned error: %v\noutput: %s", err, output)
+	}
+
+	if !strings.Contains(output, "com.jpm:jpm-cli") {
+		t.Fatalf("expected output to contain root coordinate\noutput: %s", output)
+	}
+
+	if !strings.Contains(output, "info.picocli:picocli") {
+		t.Fatalf("expected output to contain picocli dependency\noutput: %s", output)
+	}
+}
+
 func TestCLI_GradleNotImplemented(t *testing.T) {
-	_, err := executeCommand(t, "module", "find", "--build-tool", "gradle", filepath.Join("..", "..", "java-legacy", "JPM"))
+	_, err := executeCommand(t, "module", "ls", "--build-tool", "gradle", filepath.Join("..", "..", "java-legacy", "JPM"))
 	if err == nil || !strings.Contains(err.Error(), "not yet implemented") {
 		t.Fatalf("expected not yet implemented error, got %v", err)
 	}

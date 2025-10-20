@@ -28,3 +28,10 @@ func (i *GradleProjectInspector) ListModules(projectRoot string) ([]string, erro
 func (i *GradleProjectInspector) ListDependencies(projectRoot string) ([]core.Dependency, error) {
 	return nil, fmt.Errorf("gradle support not yet implemented")
 }
+
+// DependencyTree provides a hierarchical view of Gradle dependencies. The
+// Gradle adapter is not yet implemented, so this currently returns an error to
+// keep CLI feedback consistent across commands.
+func (i *GradleProjectInspector) DependencyTree(projectRoot string) (*core.DependencyTree, error) {
+	return nil, fmt.Errorf("gradle support not yet implemented")
+}

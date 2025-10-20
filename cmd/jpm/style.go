@@ -11,6 +11,8 @@ var (
 	subduedStyle     = color.New(color.FgHiBlack).SprintFunc()
 	indexStyle       = color.New(color.FgCyan, color.Bold).SprintFunc()
 	primaryTextStyle = color.New(color.FgHiWhite).SprintFunc()
+	warningIconStyle = color.New(color.FgHiYellow, color.Bold).SprintFunc()
+	warningTextStyle = color.New(color.FgYellow).SprintFunc()
 )
 
 // formatIndex wraps the numerical index in a consistent color treatment so

@@ -63,6 +63,41 @@ func TestMavenInspectorParsesModulesAndDependencies(t *testing.T) {
 	}
 }
 
+func TestParseMavenDependencyTree(t *testing.T) {
+	raw := `[INFO] com.example:demo:jar:1.0-SNAPSHOT
+[INFO] +- org.slf4j:slf4j-api:jar:1.7.36:compile
+[INFO] |  \- org.slf4j:slf4j-parent:pom:1.7.36:compile
+[INFO] \- junit:junit:jar:4.13.2:test
+`
+
+	tree, err := parseMavenDependencyTree(raw)
+	if err != nil {
+		t.Fatalf("parseMavenDependencyTree returned error: %v", err)
+	}
+
+	if tree.Root == nil || tree.Root.Coordinate != "com.example:demo:jar:1.0-SNAPSHOT" {
+		t.Fatalf("unexpected root coordinate: %#v", tree.Root)
+	}
+
+	if len(tree.Root.Children) != 2 {
+		t.Fatalf("expected 2 top-level dependencies, got %d", len(tree.Root.Children))
+	}
+
+	first := tree.Root.Children[0]
+	if first.Coordinate != "org.slf4j:slf4j-api:jar:1.7.36:compile" {
+		t.Fatalf("unexpected first dependency: %s", first.Coordinate)
+	}
+
+	if len(first.Children) != 1 || first.Children[0].Coordinate != "org.slf4j:slf4j-parent:pom:1.7.36:compile" {
+		t.Fatalf("unexpected nested dependency: %#v", first.Children)
+	}
+
+	second := tree.Root.Children[1]
+	if second.Coordinate != "junit:junit:jar:4.13.2:test" {
+		t.Fatalf("unexpected second dependency: %s", second.Coordinate)
+	}
+}
+
 func writePom(t *testing.T, dir, contents string) {
 	t.Helper()
 	path := filepath.Join(dir, "pom.xml")
