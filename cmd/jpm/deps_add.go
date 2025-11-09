@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bufio"
 	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -53,6 +55,71 @@ func runDepsAdd(cmd *cobra.Command, args []string) error {
 	if len(args) > 0 {
 		coordinateInput = args[0]
 	}
+
+	projectPath, _ := cmd.Flags().GetString("path")
+	projectPath = strings.TrimSpace(projectPath)
+	if projectPath == "" {
+		projectPath = "."
+	}
+	projectPath, err = filepath.Abs(projectPath)
+	if err != nil {
+		return fmt.Errorf("failed to resolve project path: %w", err)
+	}
+
+	// If manifest exists, use prompt-first flow and update jpm.yaml
+	if m, _, mErr := core.LoadManifest(projectPath); mErr == nil && m != nil {
+		groupID := ""
+		artifactID := ""
+		version := ""
+		if coordinateInput != "" {
+			g, a, v, perr := parseCoordinate(coordinateInput)
+			if perr != nil {
+				return perr
+			}
+			groupID, artifactID, version = g, a, v
+		}
+		reader := bufio.NewReader(os.Stdin)
+		if groupID == "" {
+			groupID = prompt(reader, "Group ID", "")
+		}
+		if artifactID == "" {
+			artifactID = prompt(reader, "Artifact ID", "")
+		}
+		if version == "" {
+			version = prompt(reader, "Version", "latest")
+			if version == "latest" {
+				// Best-effort: leave literal "latest" or user can edit later; no network in prototype
+			}
+		}
+		if groupID == "" || artifactID == "" || version == "" {
+			return errors.New("groupId, artifactId, and version are required")
+		}
+		entry := core.Dependency{GroupID: groupID, ArtifactID: artifactID, Version: version}
+		// If exists, update version; else append
+		updated := false
+		for i := range m.Dependencies {
+			if m.Dependencies[i].GroupID == entry.GroupID && m.Dependencies[i].ArtifactID == entry.ArtifactID {
+				m.Dependencies[i].Version = entry.Version
+				updated = true
+				break
+			}
+		}
+		if !updated {
+			m.Dependencies = append(m.Dependencies, entry)
+		}
+		if _, err := core.SaveManifest(projectPath, m); err != nil {
+			return err
+		}
+		fmt.Println(headerStyle("→ dependency update:"))
+		if updated {
+			fmt.Printf("  %s %s:%s@%s\n", primaryTextStyle("updated"), entry.GroupID, entry.ArtifactID, entry.Version)
+		} else {
+			fmt.Printf("  %s %s:%s@%s\n", primaryTextStyle("added"), entry.GroupID, entry.ArtifactID, entry.Version)
+		}
+		return nil
+	}
+
+	// Legacy path: fall back to tool-specific modification
 	if coordinateInput == "" {
 		return errors.New("coordinate argument is required (format: group:artifact[@version])")
 	}
@@ -74,16 +141,6 @@ func runDepsAdd(cmd *cobra.Command, args []string) error {
 	optional, _ := cmd.Flags().GetBool("optional")
 	dryRun, _ := cmd.Flags().GetBool("dry-run")
 	listVersions, _ := cmd.Flags().GetBool("list-versions")
-
-	projectPath, _ := cmd.Flags().GetString("path")
-	projectPath = strings.TrimSpace(projectPath)
-	if projectPath == "" {
-		projectPath = "."
-	}
-	projectPath, err = filepath.Abs(projectPath)
-	if err != nil {
-		return fmt.Errorf("failed to resolve project path: %w", err)
-	}
 
 	dep := core.Dependency{
 		GroupID:    groupID,
@@ -137,6 +194,20 @@ func runDepsAdd(cmd *cobra.Command, args []string) error {
 
 	printAddDependencySummary(result)
 	return nil
+}
+
+func prompt(r *bufio.Reader, label, def string) string {
+	if def != "" {
+		fmt.Printf("%s [%s]: ", label, def)
+	} else {
+		fmt.Printf("%s: ", label)
+	}
+	text, _ := r.ReadString('\n')
+	text = strings.TrimSpace(text)
+	if text == "" {
+		return def
+	}
+	return text
 }
 
 func parseCoordinate(input string) (string, string, string, error) {

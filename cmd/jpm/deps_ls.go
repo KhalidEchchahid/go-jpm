@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
 	"strings"
 
@@ -35,12 +37,28 @@ var depsLsCmd = &cobra.Command{
 			return fmt.Errorf("failed to get absolute path: %w", err)
 		}
 
+		// Preferred path: read from jpm.yaml manifest
+		if m, _, mErr := core.LoadManifest(projectRoot); mErr == nil && m != nil {
+			fmt.Println(headerStyle("→ dependencies:"))
+			deps := m.Dependencies
+			if len(deps) == 0 {
+				fmt.Println(subduedStyle("  (none)"))
+				return nil
+			}
+			for i, dep := range deps {
+				fmt.Printf("  %s %s\n", formatIndex(i+1), primaryTextStyle(formatDependency(dep)))
+			}
+			return nil
+		} else if mErr != nil && !errors.Is(mErr, os.ErrNotExist) {
+			return mErr
+		}
+
+		// Fallback: use build tool inspector if manifest not present
 		factory := inspectors.NewFactory()
 		inspector, err := factory.ForTool(buildTool)
 		if err != nil {
 			return err
 		}
-
 		deps, err := inspector.ListDependencies(projectRoot)
 		if err != nil {
 			return err

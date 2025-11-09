@@ -1,0 +1,13 @@
+# JPM project manifest (prototype)
+name: project_test
+build_tool: maven
+engine: maven
+java:
+  version: "21"
+project:
+  group_id: app
+  artifact_id: project-test
+  version: 0.1.0-SNAPSHOT
+app:
+  main_class: Main
+dependencies: []
