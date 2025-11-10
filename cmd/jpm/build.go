@@ -40,9 +40,15 @@ var buildCmd = &cobra.Command{
 			return err
 		}
 
+		// Get verbose flag
+		verbose, err := cmd.Flags().GetBool("verbose")
+		if err != nil {
+			return err
+		}
+
 		// Route to appropriate build engine
 		if m.Engine == "native" {
-			return buildNative(abs, m)
+			return buildNative(abs, m, verbose)
 		}
 
 		// Fall back to Maven (default)
@@ -52,6 +58,7 @@ var buildCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(buildCmd)
+	buildCmd.Flags().BoolP("verbose", "v", false, "Enable verbose output")
 }
 
 // buildMaven uses the Maven bridge to compile and package the project.
@@ -116,13 +123,17 @@ func buildMaven(projectRoot string, m *core.Manifest) error {
 }
 
 // buildNative uses the native engine (resolver → compiler → packager) to build.
-func buildNative(projectRoot string, m *core.Manifest) error {
+func buildNative(projectRoot string, m *core.Manifest, verbose bool) error {
 	ctx := context.Background()
 
 	// Setup directories
 	jpmDir := filepath.Join(projectRoot, ".jpm")
 	outDir := filepath.Join(jpmDir, "out")
 	workDir := filepath.Join(jpmDir, "work")
+
+	if verbose {
+		fmt.Printf("  %s %s\n", subduedStyle("setup"), "project directories")
+	}
 
 	if err := os.MkdirAll(outDir, 0o755); err != nil {
 		return err
@@ -147,6 +158,11 @@ func buildNative(projectRoot string, m *core.Manifest) error {
 	mainClass := m.App.MainClass
 
 	fmt.Println(headerStyle("→ building (native engine)"))
+	if verbose {
+		fmt.Printf("  %s artifact: %s version: %s java: %s main: %s\n",
+			subduedStyle("manifest"),
+			artifactID, version, javaVersion, mainClass)
+	}
 
 	// Create builder
 	config := &build.BuildConfig{
@@ -154,27 +170,42 @@ func buildNative(projectRoot string, m *core.Manifest) error {
 		Version:     version,
 		MainClass:   mainClass,
 		JavaVersion: javaVersion,
-		Verbose:     false,
+		Verbose:     verbose,
 		ToolVersion: "0.0.1", // TODO: Get actual version from binary
 	}
 	builder := build.NewBuilder(config)
+	if verbose {
+		fmt.Printf("  %s builder initialized\n", subduedStyle("build"))
+	}
 
 	// Create dependency graph
 	graph := resolver.NewGraph("0.0.1")
+	if verbose {
+		fmt.Printf("  %s creating dependency graph\n", subduedStyle("resolve"))
+	}
 
 	// For now, just add manifest dependencies directly
 	// In a full implementation, this would:
 	// 1. Fetch POMs from repository
 	// 2. Resolve transitive dependencies
 	// 3. Handle version conflicts
+	depCount := len(m.Dependencies)
 	for _, dep := range m.Dependencies {
 		node := resolver.NewNode(dep.GroupID, dep.ArtifactID, dep.Version, resolver.ScopeCompile)
 		node.Resolved = true // Mark as resolved for now (in full impl, fetcher would do this)
 		graph.AddNode(node)
 	}
+	if verbose && depCount > 0 {
+		fmt.Printf("  %s added %d dependency(ies) to graph\n", subduedStyle("resolve"), depCount)
+	} else if verbose {
+		fmt.Printf("  %s no dependencies to resolve\n", subduedStyle("resolve"))
+	}
 
 	// Build
 	srcDir := filepath.Join(projectRoot, "src")
+	if verbose {
+		fmt.Printf("  %s source from %s\n", subduedStyle("compile"), srcDir)
+	}
 	result, err := builder.Build(ctx, srcDir, workDir, outDir, graph)
 	if err != nil {
 		return fmt.Errorf("build failed: %w", err)
@@ -188,6 +219,9 @@ func buildNative(projectRoot string, m *core.Manifest) error {
 	}
 
 	// Generate lockfile
+	if verbose {
+		fmt.Printf("  %s writing lockfile to %s\n", subduedStyle("package"), filepath.Join(projectRoot, "jpm.lock.yaml"))
+	}
 	lockWriter := lockfile.NewWriter("0.0.1")
 	if err := lockWriter.Write(projectRoot, graph, "native"); err != nil {
 		// Warn but don't fail on lockfile generation errors

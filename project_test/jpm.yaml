@@ -1,7 +1,7 @@
 # JPM project manifest (prototype)
 name: project_test
 build_tool: maven
-engine: maven
+engine: native
 java:
   version: "21"
 project:
