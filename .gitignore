@@ -34,7 +34,8 @@ replay_pid*
 *.out
 
 # Go build outputs and reports
-bin/
-build/
-dist/
+/bin/
+/build/
+/dist/
 coverage.out
+
