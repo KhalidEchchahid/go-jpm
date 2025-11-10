@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"context"
 	"fmt"
 	"io"
 	"os"
@@ -12,6 +13,9 @@ import (
 	"time"
 
 	"github.com/KhalidEchchahid/go-jpm/internal/core"
+	"github.com/KhalidEchchahid/go-jpm/internal/engine/build"
+	"github.com/KhalidEchchahid/go-jpm/internal/engine/lockfile"
+	"github.com/KhalidEchchahid/go-jpm/internal/engine/resolver"
 	"github.com/spf13/cobra"
 )
 
@@ -36,68 +40,167 @@ var buildCmd = &cobra.Command{
 			return err
 		}
 
-		jpmDir := filepath.Join(abs, ".jpm")
-		mvnDir := filepath.Join(jpmDir, "maven")
-		if err := os.MkdirAll(filepath.Join(mvnDir, "src", "main"), 0o755); err != nil {
-			return err
-		}
-		// Ensure symlink: .jpm/maven/src/main/java -> ./src
-		if err := ensureJavaLink(abs, mvnDir); err != nil {
-			return err
-		}
-		// Render pom.xml from manifest
-		pomPath := filepath.Join(mvnDir, "pom.xml")
-		pom := renderPomFromManifest(m)
-		if err := os.WriteFile(pomPath, []byte(pom), 0o644); err != nil {
-			return err
+		// Route to appropriate build engine
+		if m.Engine == "native" {
+			return buildNative(abs, m)
 		}
 
-		outDir := filepath.Join(jpmDir, "out")
-		logsDir := filepath.Join(jpmDir, "logs")
-		if err := os.MkdirAll(outDir, 0o755); err != nil {
-			return err
-		}
-		if err := os.MkdirAll(logsDir, 0o755); err != nil {
-			return err
-		}
-		artifactID := m.Project.ArtifactID
-		if artifactID == "" {
-			artifactID = "app"
-		}
-		version := m.Project.Version
-		if version == "" {
-			version = "0.1.0-SNAPSHOT"
-		}
-		outJar := filepath.Join(outDir, fmt.Sprintf("%s-%s.jar", artifactID, version))
-
-		// Hidden engine: prefer mvn if available, else write placeholder
-		if _, err := exec.LookPath("mvn"); err == nil {
-			logFile := filepath.Join(logsDir, fmt.Sprintf("build-%d.log", time.Now().Unix()))
-			if err := runMavenPackage(mvnDir, logFile); err != nil {
-				return err
-			}
-			// Copy artifact from target to .jpm/out
-			srcJar := filepath.Join(mvnDir, "target", fmt.Sprintf("%s-%s.jar", artifactID, version))
-			if err := copyFile(srcJar, outJar); err != nil {
-				return err
-			}
-		} else {
-			// Placeholder artifact when mvn is not available
-			if _, err := os.Stat(outJar); err != nil && os.IsNotExist(err) {
-				if err := os.WriteFile(outJar, []byte{}, 0o644); err != nil {
-					return err
-				}
-			}
-		}
-
-		fmt.Println(headerStyle("→ build:"))
-		fmt.Printf("  %s %s\n", primaryTextStyle("artifact"), outJar)
-		return nil
+		// Fall back to Maven (default)
+		return buildMaven(abs, m)
 	},
 }
 
 func init() {
 	rootCmd.AddCommand(buildCmd)
+}
+
+// buildMaven uses the Maven bridge to compile and package the project.
+func buildMaven(projectRoot string, m *core.Manifest) error {
+	jpmDir := filepath.Join(projectRoot, ".jpm")
+	mvnDir := filepath.Join(jpmDir, "maven")
+	if err := os.MkdirAll(filepath.Join(mvnDir, "src", "main"), 0o755); err != nil {
+		return err
+	}
+	// Ensure symlink: .jpm/maven/src/main/java -> ./src
+	if err := ensureJavaLink(projectRoot, mvnDir); err != nil {
+		return err
+	}
+	// Render pom.xml from manifest
+	pomPath := filepath.Join(mvnDir, "pom.xml")
+	pom := renderPomFromManifest(m)
+	if err := os.WriteFile(pomPath, []byte(pom), 0o644); err != nil {
+		return err
+	}
+
+	outDir := filepath.Join(jpmDir, "out")
+	logsDir := filepath.Join(jpmDir, "logs")
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(logsDir, 0o755); err != nil {
+		return err
+	}
+	artifactID := m.Project.ArtifactID
+	if artifactID == "" {
+		artifactID = "app"
+	}
+	version := m.Project.Version
+	if version == "" {
+		version = "0.1.0-SNAPSHOT"
+	}
+	outJar := filepath.Join(outDir, fmt.Sprintf("%s-%s.jar", artifactID, version))
+
+	// Hidden engine: prefer mvn if available, else write placeholder
+	if _, err := exec.LookPath("mvn"); err == nil {
+		logFile := filepath.Join(logsDir, fmt.Sprintf("build-%d.log", time.Now().Unix()))
+		if err := runMavenPackage(mvnDir, logFile); err != nil {
+			return err
+		}
+		// Copy artifact from target to .jpm/out
+		srcJar := filepath.Join(mvnDir, "target", fmt.Sprintf("%s-%s.jar", artifactID, version))
+		if err := copyFile(srcJar, outJar); err != nil {
+			return err
+		}
+	} else {
+		// Placeholder artifact when mvn is not available
+		if _, err := os.Stat(outJar); err != nil && os.IsNotExist(err) {
+			if err := os.WriteFile(outJar, []byte{}, 0o644); err != nil {
+				return err
+			}
+		}
+	}
+
+	fmt.Println(headerStyle("→ build:"))
+	fmt.Printf("  %s %s\n", primaryTextStyle("artifact"), outJar)
+	return nil
+}
+
+// buildNative uses the native engine (resolver → compiler → packager) to build.
+func buildNative(projectRoot string, m *core.Manifest) error {
+	ctx := context.Background()
+
+	// Setup directories
+	jpmDir := filepath.Join(projectRoot, ".jpm")
+	outDir := filepath.Join(jpmDir, "out")
+	workDir := filepath.Join(jpmDir, "work")
+
+	if err := os.MkdirAll(outDir, 0o755); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(workDir, 0o755); err != nil {
+		return err
+	}
+
+	// Get artifact info from manifest
+	artifactID := m.Project.ArtifactID
+	if artifactID == "" {
+		artifactID = "app"
+	}
+	version := m.Project.Version
+	if version == "" {
+		version = "0.1.0-SNAPSHOT"
+	}
+	javaVersion := m.Java.Version
+	if javaVersion == "" {
+		javaVersion = "21"
+	}
+	mainClass := m.App.MainClass
+
+	fmt.Println(headerStyle("→ building (native engine)"))
+
+	// Create builder
+	config := &build.BuildConfig{
+		ProjectName: artifactID,
+		Version:     version,
+		MainClass:   mainClass,
+		JavaVersion: javaVersion,
+		Verbose:     false,
+		ToolVersion: "0.0.1", // TODO: Get actual version from binary
+	}
+	builder := build.NewBuilder(config)
+
+	// Create dependency graph
+	graph := resolver.NewGraph("0.0.1")
+
+	// For now, just add manifest dependencies directly
+	// In a full implementation, this would:
+	// 1. Fetch POMs from repository
+	// 2. Resolve transitive dependencies
+	// 3. Handle version conflicts
+	for _, dep := range m.Dependencies {
+		node := resolver.NewNode(dep.GroupID, dep.ArtifactID, dep.Version, resolver.ScopeCompile)
+		node.Resolved = true // Mark as resolved for now (in full impl, fetcher would do this)
+		graph.AddNode(node)
+	}
+
+	// Build
+	srcDir := filepath.Join(projectRoot, "src")
+	result, err := builder.Build(ctx, srcDir, workDir, outDir, graph)
+	if err != nil {
+		return fmt.Errorf("build failed: %w", err)
+	}
+
+	if !result.Success {
+		if len(result.Errors) > 0 {
+			return fmt.Errorf("build errors: %v", result.Errors)
+		}
+		return fmt.Errorf("build failed")
+	}
+
+	// Generate lockfile
+	lockWriter := lockfile.NewWriter("0.0.1")
+	if err := lockWriter.Write(projectRoot, graph, "native"); err != nil {
+		// Warn but don't fail on lockfile generation errors
+		fmt.Printf("  %s: %v\n", primaryTextStyle("warning"), err)
+	}
+
+	// Report success
+	jarPath := filepath.Join(outDir, fmt.Sprintf("%s-%s.jar", artifactID, version))
+	fmt.Printf("  %s %s\n", primaryTextStyle("compiled"), fmt.Sprintf("%d source files", result.CompileResult.Sources))
+	fmt.Printf("  %s %s\n", primaryTextStyle("packaged"), jarPath)
+	fmt.Printf("  %s %v\n", primaryTextStyle("duration"), result.Duration)
+
+	return nil
 }
 
 func ensureJavaLink(projectRoot, mvnDir string) error {
@@ -139,10 +242,18 @@ func renderPomFromManifest(m *core.Manifest) string {
 		fmt.Fprintf(b, "      <groupId>%s</groupId>\n", d.GroupID)
 		fmt.Fprintf(b, "      <artifactId>%s</artifactId>\n", d.ArtifactID)
 		fmt.Fprintf(b, "      <version>%s</version>\n", d.Version)
-		if d.Scope != "" { fmt.Fprintf(b, "      <scope>%s</scope>\n", d.Scope) }
-		if d.Type != "" { fmt.Fprintf(b, "      <type>%s</type>\n", d.Type) }
-		if d.Classifier != "" { fmt.Fprintf(b, "      <classifier>%s</classifier>\n", d.Classifier) }
-		if d.Optional { fmt.Fprintf(b, "      <optional>true</optional>\n") }
+		if d.Scope != "" {
+			fmt.Fprintf(b, "      <scope>%s</scope>\n", d.Scope)
+		}
+		if d.Type != "" {
+			fmt.Fprintf(b, "      <type>%s</type>\n", d.Type)
+		}
+		if d.Classifier != "" {
+			fmt.Fprintf(b, "      <classifier>%s</classifier>\n", d.Classifier)
+		}
+		if d.Optional {
+			fmt.Fprintf(b, "      <optional>true</optional>\n")
+		}
 		fmt.Fprintf(b, "    </dependency>\n")
 	}
 	fmt.Fprintf(b, "  </dependencies>\n")
@@ -167,11 +278,17 @@ func runMavenPackage(mvnDir, logPath string) error {
 
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer in.Close()
 	out, err := os.Create(dst)
-	if err != nil { return err }
-	defer func(){ _ = out.Close() }()
-	if _, err := io.Copy(out, in); err != nil { return err }
+	if err != nil {
+		return err
+	}
+	defer func() { _ = out.Close() }()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
 	return out.Sync()
 }
