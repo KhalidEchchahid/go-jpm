@@ -14,6 +14,7 @@ import (
 
 	"github.com/KhalidEchchahid/go-jpm/internal/core"
 	"github.com/KhalidEchchahid/go-jpm/internal/engine/build"
+	"github.com/KhalidEchchahid/go-jpm/internal/engine/fetcher"
 	"github.com/KhalidEchchahid/go-jpm/internal/engine/lockfile"
 	"github.com/KhalidEchchahid/go-jpm/internal/engine/resolver"
 	"github.com/spf13/cobra"
@@ -178,27 +179,75 @@ func buildNative(projectRoot string, m *core.Manifest, verbose bool) error {
 		fmt.Printf("  %s builder initialized\n", subduedStyle("build"))
 	}
 
-	// Create dependency graph
-	graph := resolver.NewGraph("0.0.1")
+	// Create fetcher
+	cacheDir := filepath.Join(jpmDir, "cache")
+	f := fetcher.NewFetcher(cacheDir, verbose)
 	if verbose {
-		fmt.Printf("  %s creating dependency graph\n", subduedStyle("resolve"))
+		fmt.Printf("  %s fetcher ready (cache: %s)\n", subduedStyle("resolve"), cacheDir)
 	}
 
-	// For now, just add manifest dependencies directly
-	// In a full implementation, this would:
-	// 1. Fetch POMs from repository
-	// 2. Resolve transitive dependencies
-	// 3. Handle version conflicts
-	depCount := len(m.Dependencies)
-	for _, dep := range m.Dependencies {
-		node := resolver.NewNode(dep.GroupID, dep.ArtifactID, dep.Version, resolver.ScopeCompile)
-		node.Resolved = true // Mark as resolved for now (in full impl, fetcher would do this)
-		graph.AddNode(node)
+	// Create resolver
+	depResolver := resolver.NewResolver(f, verbose, "0.0.1")
+	if verbose {
+		fmt.Printf("  %s resolver created\n", subduedStyle("resolve"))
 	}
-	if verbose && depCount > 0 {
-		fmt.Printf("  %s added %d dependency(ies) to graph\n", subduedStyle("resolve"), depCount)
-	} else if verbose {
-		fmt.Printf("  %s no dependencies to resolve\n", subduedStyle("resolve"))
+
+	// Convert manifest dependencies to resolver format
+	rootDeps := make([]resolver.Dependency, 0, len(m.Dependencies))
+	for _, dep := range m.Dependencies {
+		rootDeps = append(rootDeps, resolver.Dependency{
+			GroupID:    dep.GroupID,
+			ArtifactID: dep.ArtifactID,
+			Version:    dep.Version,
+			Scope:      dep.Scope,
+			Type:       dep.Type,
+			Classifier: dep.Classifier,
+			Optional:   dep.Optional,
+		})
+	}
+
+	// Resolve dependencies (including transitive)
+	var graph *resolver.Graph
+	var err error
+	if len(rootDeps) > 0 {
+		if verbose {
+			fmt.Printf("  %s resolving %d root dependencies (transitive included)\n", subduedStyle("resolve"), len(rootDeps))
+		}
+		graph, err = depResolver.Resolve(ctx, rootDeps)
+		if err != nil {
+			return fmt.Errorf("dependency resolution failed: %w", err)
+		}
+
+		// Set cache path on graph for classpath generation
+		graph.CachePath = cacheDir
+
+		// Fetch JAR files for all resolved dependencies
+		if verbose {
+			fmt.Printf("  %s fetching %d JAR files\n", subduedStyle("resolve"), len(graph.Nodes))
+		}
+		for gav := range graph.Nodes {
+			parts := parseGAV(gav)
+			if len(parts) >= 3 {
+				groupID := parts[0]
+				artifactID := parts[1]
+				version := parts[2]
+				classifier := ""
+				if len(parts) > 3 {
+					classifier = parts[3]
+				}
+
+				_, err := f.FetchArtifact(ctx, fmt.Sprintf("%s:%s:%s", groupID, artifactID, version), classifier)
+				if err != nil && verbose {
+					fmt.Printf("  ⚠ Failed to fetch JAR %s: %v\n", gav, err)
+				}
+			}
+		}
+	} else {
+		graph = resolver.NewGraph("0.0.1")
+		graph.CachePath = cacheDir
+		if verbose {
+			fmt.Printf("  %s no dependencies to resolve\n", subduedStyle("resolve"))
+		}
 	}
 
 	// Build
@@ -325,4 +374,9 @@ func copyFile(src, dst string) error {
 		return err
 	}
 	return out.Sync()
+}
+
+// parseGAV parses "group:artifact:version[:classifier]" into parts
+func parseGAV(gav string) []string {
+	return strings.Split(gav, ":")
 }

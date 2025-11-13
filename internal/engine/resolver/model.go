@@ -2,6 +2,8 @@ package resolver
 
 import (
 	"fmt"
+	"path/filepath"
+	"strings"
 	"time"
 )
 
@@ -11,6 +13,7 @@ type Graph struct {
 	Nodes         map[string]*Node // All unique GAVs (key: "group:artifact:version")
 	Metadata      *ResolutionMeta
 	UnresolvedIDs []string // Missing/failed artifacts (partial resolution)
+	CachePath     string   // Path to artifact cache (for classpath generation)
 }
 
 // Node represents a single artifact in the graph.
@@ -82,7 +85,15 @@ func NewGraph(toolVersion string) *Graph {
 			ToolVersion: toolVersion,
 		},
 		UnresolvedIDs: []string{},
+		CachePath:     "",
 	}
+}
+
+// NewGraphWithCache creates a new dependency graph with a cache path.
+func NewGraphWithCache(toolVersion, cachePath string) *Graph {
+	g := NewGraph(toolVersion)
+	g.CachePath = cachePath
+	return g
 }
 
 // AddNode adds a node to the graph or updates if exists.
@@ -123,11 +134,33 @@ func (g *Graph) resolvedCount() int {
 // Returns a slice of absolute paths to JAR files in the format expected by javac -cp.
 func (g *Graph) ToClasspath() ([]string, error) {
 	var classpath []string
+	seen := make(map[string]bool)
+
 	for _, node := range g.Nodes {
-		if node.Resolved && node.Scope != ScopeTest && node.Scope != ScopeProvided {
-			// For now, construct path based on standard Maven cache layout
-			// Format: ~/.m2/repository/{group}/{artifact}/{version}/{artifact}-{version}.jar
-			// This will be replaced when we implement actual fetcher integration
+		if !node.Resolved {
+			continue
+		}
+
+		// Skip test and provided scopes
+		if node.Scope == ScopeTest || node.Scope == ScopeProvided {
+			continue
+		}
+
+		// Skip if already added
+		if seen[node.GAV] {
+			continue
+		}
+		seen[node.GAV] = true
+
+		// If cache path is set, generate actual JAR paths
+		if g.CachePath != "" {
+			// Generate path: {cacheDir}/artifacts/{group}/{artifact}/{version}/{artifact}-{version}.jar
+			groupPath := filepath.Join(strings.Split(node.GroupID, ".")...)
+			jarName := fmt.Sprintf("%s-%s.jar", node.ArtifactID, node.Version)
+			jarPath := filepath.Join(g.CachePath, "artifacts", groupPath, node.ArtifactID, node.Version, jarName)
+			classpath = append(classpath, jarPath)
+		} else {
+			// Fallback: use GAV format (for compatibility)
 			jarPath := fmt.Sprintf("%s:%s:%s", node.GroupID, node.ArtifactID, node.Version)
 			classpath = append(classpath, jarPath)
 		}
