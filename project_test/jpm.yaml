@@ -14,3 +14,7 @@ dependencies:
     artifact_id: commons-lang3
     version: "3.14.0"
     scope: compile
+  - group_id: junit
+    artifact_id: junit
+    version: "4.13.2"
+    scope: test
