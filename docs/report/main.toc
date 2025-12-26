@@ -1,0 +1,96 @@
+\babel@toc {english}{}\relax 
+\contentsline {chapter}{Abstract}{4}{chapter*.2}%
+\contentsline {chapter}{\numberline {1}Introduction}{5}{chapter.1}%
+\contentsline {section}{\numberline {1.1}Context and Motivation}{5}{section.1.1}%
+\contentsline {section}{\numberline {1.2}Project Objectives}{5}{section.1.2}%
+\contentsline {section}{\numberline {1.3}Design Evolution}{5}{section.1.3}%
+\contentsline {subsection}{\numberline {1.3.1}Phase 1: Direct Build Tool Manipulation}{6}{subsection.1.3.1}%
+\contentsline {subsection}{\numberline {1.3.2}Phase 2: Manifest with Build Tool Sync}{6}{subsection.1.3.2}%
+\contentsline {subsection}{\numberline {1.3.3}Phase 3: Native Engine}{6}{subsection.1.3.3}%
+\contentsline {section}{\numberline {1.4}Report Structure}{7}{section.1.4}%
+\contentsline {chapter}{\numberline {2}Sprint 1: Project Foundation}{8}{chapter.2}%
+\contentsline {section}{\numberline {2.1}Sprint Overview}{8}{section.2.1}%
+\contentsline {section}{\numberline {2.2}Initial Approach: Direct POM Manipulation}{8}{section.2.2}%
+\contentsline {subsection}{\numberline {2.2.1}Original Design}{8}{subsection.2.2.1}%
+\contentsline {subsection}{\numberline {2.2.2}Problems Identified}{8}{subsection.2.2.2}%
+\contentsline {section}{\numberline {2.3}Implementation Details}{9}{section.2.3}%
+\contentsline {subsection}{\numberline {2.3.1}Technology Stack Selection}{9}{subsection.2.3.1}%
+\contentsline {subsection}{\numberline {2.3.2}Project Structure}{9}{subsection.2.3.2}%
+\contentsline {subsection}{\numberline {2.3.3}CLI Framework}{9}{subsection.2.3.3}%
+\contentsline {section}{\numberline {2.4}Architecture Diagram}{10}{section.2.4}%
+\contentsline {section}{\numberline {2.5}Sprint 1 Deliverables}{10}{section.2.5}%
+\contentsline {chapter}{\numberline {3}Sprint 2: Manifest System and Dependencies}{11}{chapter.3}%
+\contentsline {section}{\numberline {3.1}Sprint Overview}{11}{section.3.1}%
+\contentsline {section}{\numberline {3.2}Architectural Pivot: Introducing jpm.yaml}{11}{section.3.2}%
+\contentsline {subsection}{\numberline {3.2.1}The Sync Approach}{11}{subsection.3.2.1}%
+\contentsline {subsection}{\numberline {3.2.2}The Performance Problem}{12}{subsection.3.2.2}%
+\contentsline {section}{\numberline {3.3}Manifest Design}{12}{section.3.3}%
+\contentsline {subsection}{\numberline {3.3.1}jpm.yaml Structure}{12}{subsection.3.3.1}%
+\contentsline {subsection}{\numberline {3.3.2}Go Struct Definition}{12}{subsection.3.3.2}%
+\contentsline {section}{\numberline {3.4}Dependency Commands}{13}{section.3.4}%
+\contentsline {subsection}{\numberline {3.4.1}deps add}{13}{subsection.3.4.1}%
+\contentsline {subsection}{\numberline {3.4.2}deps ls and deps tree}{13}{subsection.3.4.2}%
+\contentsline {section}{\numberline {3.5}Dependency Resolution Flow}{14}{section.3.5}%
+\contentsline {section}{\numberline {3.6}Sprint 2 Deliverables}{14}{section.3.6}%
+\contentsline {chapter}{\numberline {4}Sprint 3: Native Engine Implementation}{15}{chapter.4}%
+\contentsline {section}{\numberline {4.1}Sprint Overview}{15}{section.4.1}%
+\contentsline {section}{\numberline {4.2}The Decision to Go Native}{15}{section.4.2}%
+\contentsline {section}{\numberline {4.3}Native Engine Architecture}{16}{section.4.3}%
+\contentsline {section}{\numberline {4.4}Component Details}{16}{section.4.4}%
+\contentsline {subsection}{\numberline {4.4.1}Dependency Resolver}{16}{subsection.4.4.1}%
+\contentsline {subsection}{\numberline {4.4.2}POM Parser}{17}{subsection.4.4.2}%
+\contentsline {subsection}{\numberline {4.4.3}Artifact Downloader}{18}{subsection.4.4.3}%
+\contentsline {subsection}{\numberline {4.4.4}Java Compiler}{18}{subsection.4.4.4}%
+\contentsline {subsection}{\numberline {4.4.5}JAR Packager}{19}{subsection.4.4.5}%
+\contentsline {section}{\numberline {4.5}Build Pipeline Flow}{19}{section.4.5}%
+\contentsline {section}{\numberline {4.6}Sprint 3 Deliverables}{19}{section.4.6}%
+\contentsline {chapter}{\numberline {5}Sprint 4: Integration and Benchmarks}{21}{chapter.5}%
+\contentsline {section}{\numberline {5.1}Sprint Overview}{21}{section.5.1}%
+\contentsline {section}{\numberline {5.2}Engine Integration}{21}{section.5.2}%
+\contentsline {section}{\numberline {5.3}Benchmark Methodology}{22}{section.5.3}%
+\contentsline {subsection}{\numberline {5.3.1}Test Environment}{22}{subsection.5.3.1}%
+\contentsline {subsection}{\numberline {5.3.2}Test Projects}{22}{subsection.5.3.2}%
+\contentsline {subsection}{\numberline {5.3.3}Measurement Protocol}{22}{subsection.5.3.3}%
+\contentsline {section}{\numberline {5.4}Benchmark Results}{23}{section.5.4}%
+\contentsline {subsection}{\numberline {5.4.1}Raw Data}{23}{subsection.5.4.1}%
+\contentsline {subsection}{\numberline {5.4.2}Performance Analysis}{23}{subsection.5.4.2}%
+\contentsline {subsection}{\numberline {5.4.3}Speedup Analysis}{24}{subsection.5.4.3}%
+\contentsline {section}{\numberline {5.5}Why JPM is Faster}{24}{section.5.5}%
+\contentsline {section}{\numberline {5.6}Complete Command Reference}{25}{section.5.6}%
+\contentsline {subsection}{\numberline {5.6.1}Project Initialization}{25}{subsection.5.6.1}%
+\contentsline {subsection}{\numberline {5.6.2}Build and Run}{25}{subsection.5.6.2}%
+\contentsline {subsection}{\numberline {5.6.3}Dependency Management}{25}{subsection.5.6.3}%
+\contentsline {subsection}{\numberline {5.6.4}Module Operations}{26}{subsection.5.6.4}%
+\contentsline {subsection}{\numberline {5.6.5}Global Flags}{27}{subsection.5.6.5}%
+\contentsline {subsection}{\numberline {5.6.6}Command Summary}{27}{subsection.5.6.6}%
+\contentsline {section}{\numberline {5.7}Sprint 4 Deliverables}{27}{section.5.7}%
+\contentsline {chapter}{\numberline {6}Extended Command Suite}{28}{chapter.6}%
+\contentsline {section}{\numberline {6.1}Critical Commands (Must Have)}{28}{section.6.1}%
+\contentsline {subsection}{\numberline {6.1.1}jpm deps rm}{28}{subsection.6.1.1}%
+\contentsline {subsection}{\numberline {6.1.2}jpm deps update}{29}{subsection.6.1.2}%
+\contentsline {subsection}{\numberline {6.1.3}jpm clean}{29}{subsection.6.1.3}%
+\contentsline {subsection}{\numberline {6.1.4}jpm test}{29}{subsection.6.1.4}%
+\contentsline {section}{\numberline {6.2}Important Commands (Should Have)}{30}{section.6.2}%
+\contentsline {subsection}{\numberline {6.2.1}jpm deps outdated}{30}{subsection.6.2.1}%
+\contentsline {subsection}{\numberline {6.2.2}jpm deps lock}{30}{subsection.6.2.2}%
+\contentsline {subsection}{\numberline {6.2.3}jpm package}{31}{subsection.6.2.3}%
+\contentsline {subsection}{\numberline {6.2.4}jpm install}{32}{subsection.6.2.4}%
+\contentsline {subsection}{\numberline {6.2.5}jpm --version}{32}{subsection.6.2.5}%
+\contentsline {section}{\numberline {6.3}Nice-to-Have Commands (Future)}{33}{section.6.3}%
+\contentsline {subsection}{\numberline {6.3.1}jpm deps search}{33}{subsection.6.3.1}%
+\contentsline {subsection}{\numberline {6.3.2}jpm deps audit}{33}{subsection.6.3.2}%
+\contentsline {subsection}{\numberline {6.3.3}jpm exec}{33}{subsection.6.3.3}%
+\contentsline {subsection}{\numberline {6.3.4}jpm repl}{34}{subsection.6.3.4}%
+\contentsline {subsection}{\numberline {6.3.5}jpm fmt}{34}{subsection.6.3.5}%
+\contentsline {subsection}{\numberline {6.3.6}jpm lint}{34}{subsection.6.3.6}%
+\contentsline {section}{\numberline {6.4}Command Summary Table}{35}{section.6.4}%
+\contentsline {chapter}{\numberline {7}Conclusion}{36}{chapter.7}%
+\contentsline {section}{\numberline {7.1}Achievements}{36}{section.7.1}%
+\contentsline {section}{\numberline {7.2}Command Coverage}{36}{section.7.2}%
+\contentsline {section}{\numberline {7.3}Technical Contributions}{36}{section.7.3}%
+\contentsline {section}{\numberline {7.4}Benchmark Summary}{37}{section.7.4}%
+\contentsline {section}{\numberline {7.5}Future Work}{37}{section.7.5}%
+\contentsline {section}{\numberline {7.6}Lessons Learned}{37}{section.7.6}%
+\contentsline {chapter}{References}{38}{chapter*.25}%
+\contentsline {chapter}{\numberline {A}Code Statistics}{39}{appendix.A}%
+\contentsline {chapter}{\numberline {B}Sample Build Output}{40}{appendix.B}%

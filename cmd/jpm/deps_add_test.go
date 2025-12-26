@@ -5,6 +5,8 @@ import (
 	"testing"
 
 	"github.com/KhalidEchchahid/go-jpm/internal/catalog"
+	"github.com/KhalidEchchahid/go-jpm/internal/core"
+	"github.com/spf13/cobra"
 )
 
 func TestParseCoordinate(t *testing.T) {
@@ -77,4 +79,170 @@ func TestBuildArtifactCompletions_formatsAnnotations(t *testing.T) {
 	if !strings.Contains(parts[1], "latest: 1.0.0") || !strings.Contains(parts[1], "Test artifact") {
 		t.Fatalf("annotation missing expected content: %s", parts[1])
 	}
+}
+
+func TestRunDepsAddManifestAddsDependency(t *testing.T) {
+	tmp := t.TempDir()
+	manifest := &core.Manifest{}
+	manifest.BuildTool = "maven"
+	manifest.Engine = "maven"
+	manifest.Project.GroupID = "com.example"
+	manifest.Project.ArtifactID = "demo"
+	manifest.Project.Version = "0.1.0"
+	if _, err := core.SaveManifest(tmp, manifest); err != nil {
+		t.Fatalf("SaveManifest returned error: %v", err)
+	}
+
+	cmd := newTestDepsAddCommand()
+	if err := cmd.Flags().Set("path", tmp); err != nil {
+		t.Fatalf("failed to set path flag: %v", err)
+	}
+	if err := cmd.Flags().Set("scope", "test"); err != nil {
+		t.Fatalf("failed to set scope flag: %v", err)
+	}
+	if err := cmd.Flags().Set("type", "jar"); err != nil {
+		t.Fatalf("failed to set type flag: %v", err)
+	}
+	if err := cmd.Flags().Set("classifier", "tests"); err != nil {
+		t.Fatalf("failed to set classifier flag: %v", err)
+	}
+	if err := cmd.Flags().Set("optional", "true"); err != nil {
+		t.Fatalf("failed to set optional flag: %v", err)
+	}
+
+	if err := runDepsAdd(cmd, []string{"org.junit.jupiter:junit-jupiter@5.11.0"}); err != nil {
+		t.Fatalf("runDepsAdd returned error: %v", err)
+	}
+
+	updated, _, err := core.LoadManifest(tmp)
+	if err != nil {
+		t.Fatalf("LoadManifest returned error: %v", err)
+	}
+	if len(updated.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(updated.Dependencies))
+	}
+	dep := updated.Dependencies[0]
+	if dep.GroupID != "org.junit.jupiter" || dep.ArtifactID != "junit-jupiter" {
+		t.Fatalf("unexpected dependency coordinates: %+v", dep)
+	}
+	if dep.Version != "5.11.0" {
+		t.Fatalf("expected version 5.11.0, got %s", dep.Version)
+	}
+	if dep.Scope != "test" {
+		t.Fatalf("expected scope test, got %s", dep.Scope)
+	}
+	if dep.Type != "jar" {
+		t.Fatalf("expected type jar, got %s", dep.Type)
+	}
+	if dep.Classifier != "tests" {
+		t.Fatalf("expected classifier tests, got %s", dep.Classifier)
+	}
+	if !dep.Optional {
+		t.Fatalf("expected optional true")
+	}
+}
+
+func TestRunDepsAddManifestUpdatesDependency(t *testing.T) {
+	tmp := t.TempDir()
+	manifest := &core.Manifest{}
+	manifest.BuildTool = "maven"
+	manifest.Engine = "maven"
+	manifest.Project.GroupID = "com.example"
+	manifest.Project.ArtifactID = "demo"
+	manifest.Project.Version = "0.1.0"
+	manifest.Dependencies = []core.Dependency{{
+		GroupID:    "org.junit.jupiter",
+		ArtifactID: "junit-jupiter",
+		Version:    "5.10.0",
+		Scope:      "test",
+		Optional:   true,
+	}}
+	if _, err := core.SaveManifest(tmp, manifest); err != nil {
+		t.Fatalf("SaveManifest returned error: %v", err)
+	}
+
+	cmd := newTestDepsAddCommand()
+	if err := cmd.Flags().Set("path", tmp); err != nil {
+		t.Fatalf("failed to set path flag: %v", err)
+	}
+	if err := cmd.Flags().Set("version", "5.12.0"); err != nil {
+		t.Fatalf("failed to set version flag: %v", err)
+	}
+
+	if err := runDepsAdd(cmd, []string{"org.junit.jupiter:junit-jupiter"}); err != nil {
+		t.Fatalf("runDepsAdd returned error: %v", err)
+	}
+
+	updated, _, err := core.LoadManifest(tmp)
+	if err != nil {
+		t.Fatalf("LoadManifest returned error: %v", err)
+	}
+	if len(updated.Dependencies) != 1 {
+		t.Fatalf("expected 1 dependency, got %d", len(updated.Dependencies))
+	}
+	dep := updated.Dependencies[0]
+	if dep.Version != "5.12.0" {
+		t.Fatalf("expected version 5.12.0, got %s", dep.Version)
+	}
+	if dep.Scope != "test" {
+		t.Fatalf("expected scope to remain test, got %s", dep.Scope)
+	}
+	if !dep.Optional {
+		t.Fatalf("expected optional to remain true")
+	}
+}
+
+func TestRunDepsAddManifestDryRun(t *testing.T) {
+	tmp := t.TempDir()
+	manifest := &core.Manifest{}
+	manifest.BuildTool = "maven"
+	manifest.Engine = "maven"
+	manifest.Project.GroupID = "com.example"
+	manifest.Project.ArtifactID = "demo"
+	manifest.Project.Version = "0.1.0"
+	manifest.Dependencies = []core.Dependency{{
+		GroupID:    "org.assertj",
+		ArtifactID: "assertj-core",
+		Version:    "3.24.0",
+	}}
+	if _, err := core.SaveManifest(tmp, manifest); err != nil {
+		t.Fatalf("SaveManifest returned error: %v", err)
+	}
+
+	cmd := newTestDepsAddCommand()
+	if err := cmd.Flags().Set("path", tmp); err != nil {
+		t.Fatalf("failed to set path flag: %v", err)
+	}
+	if err := cmd.Flags().Set("version", "3.25.0"); err != nil {
+		t.Fatalf("failed to set version flag: %v", err)
+	}
+	if err := cmd.Flags().Set("dry-run", "true"); err != nil {
+		t.Fatalf("failed to set dry-run flag: %v", err)
+	}
+
+	if err := runDepsAdd(cmd, []string{"org.assertj:assertj-core"}); err != nil {
+		t.Fatalf("runDepsAdd returned error: %v", err)
+	}
+
+	reloaded, _, err := core.LoadManifest(tmp)
+	if err != nil {
+		t.Fatalf("LoadManifest returned error: %v", err)
+	}
+	if reloaded.Dependencies[0].Version != "3.24.0" {
+		t.Fatalf("expected version to remain 3.24.0, got %s", reloaded.Dependencies[0].Version)
+	}
+}
+
+func newTestDepsAddCommand() *cobra.Command {
+	cmd := &cobra.Command{}
+	cmd.Flags().StringP("build-tool", "b", "maven", "")
+	cmd.Flags().String("path", ".", "")
+	cmd.Flags().String("version", "", "")
+	cmd.Flags().StringP("scope", "s", "", "")
+	cmd.Flags().String("type", "", "")
+	cmd.Flags().String("classifier", "", "")
+	cmd.Flags().Bool("optional", false, "")
+	cmd.Flags().Bool("dry-run", false, "")
+	cmd.Flags().Bool("list-versions", false, "")
+	return cmd
 }

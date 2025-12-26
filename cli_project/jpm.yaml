@@ -1,0 +1,26 @@
+name: cli_project
+build_tool: maven
+engine: maven
+java:
+    version: "21"
+project:
+    group_id: app
+    artifact_id: cli_project
+    version: 0.1.0-SNAPSHOT
+app:
+    main_class: Main
+dependencies:
+    - group_id: org.apache.commons
+      artifact_id: commons-text
+      version: 1.12.0
+      type: ""
+      scope: ""
+      classifier: ""
+      optional: false
+    - group_id: org.apache.commons
+      artifact_id: commons-lang3
+      version: 3.14.0
+      type: ""
+      scope: ""
+      classifier: ""
+      optional: false

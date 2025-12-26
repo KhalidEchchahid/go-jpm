@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"io/fs"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -12,6 +14,7 @@ import (
 	"time"
 
 	"github.com/KhalidEchchahid/go-jpm/internal/core"
+	"github.com/KhalidEchchahid/go-jpm/internal/engine/native"
 	"github.com/spf13/cobra"
 )
 
@@ -34,6 +37,11 @@ var buildCmd = &cobra.Command{
 				return fmt.Errorf("no jpm.yaml found in %s (run 'jpm init')", abs)
 			}
 			return err
+		}
+
+		// Check if native engine is requested
+		if strings.EqualFold(strings.TrimSpace(m.Engine), "native") {
+			return buildWithNativeEngine(abs, m)
 		}
 
 		jpmDir := filepath.Join(abs, ".jpm")
@@ -71,6 +79,17 @@ var buildCmd = &cobra.Command{
 		outJar := filepath.Join(outDir, fmt.Sprintf("%s-%s.jar", artifactID, version))
 
 		// Hidden engine: prefer mvn if available, else write placeholder
+		depJars, err := ensureDependencyJars(abs, m.Dependencies)
+		if err != nil {
+			return err
+		}
+		classpathFile := filepath.Join(outDir, "classpath")
+		if len(depJars) == 0 {
+			_ = os.Remove(classpathFile)
+		} else if err := os.WriteFile(classpathFile, []byte(strings.Join(depJars, string(os.PathListSeparator))), 0o644); err != nil {
+			return err
+		}
+
 		if _, err := exec.LookPath("mvn"); err == nil {
 			logFile := filepath.Join(logsDir, fmt.Sprintf("build-%d.log", time.Now().Unix()))
 			if err := runMavenPackage(mvnDir, logFile); err != nil {
@@ -82,11 +101,8 @@ var buildCmd = &cobra.Command{
 				return err
 			}
 		} else {
-			// Placeholder artifact when mvn is not available
-			if _, err := os.Stat(outJar); err != nil && os.IsNotExist(err) {
-				if err := os.WriteFile(outJar, []byte{}, 0o644); err != nil {
-					return err
-				}
+			if err := fallbackBuildWithoutMaven(abs, logsDir, outJar, depJars); err != nil {
+				return err
 			}
 		}
 
@@ -98,6 +114,25 @@ var buildCmd = &cobra.Command{
 
 func init() {
 	rootCmd.AddCommand(buildCmd)
+}
+
+// buildWithNativeEngine uses the native JPM engine for the build.
+func buildWithNativeEngine(projectRoot string, m *core.Manifest) error {
+	eng := native.New()
+	result, err := eng.Build(projectRoot, m)
+	if err != nil {
+		if result != nil && result.Logs != "" {
+			fmt.Fprintln(os.Stderr, result.Logs)
+		}
+		return err
+	}
+
+	fmt.Println(headerStyle("→ build (native engine):"))
+	fmt.Printf("  %s %s\n", primaryTextStyle("artifact"), result.ArtifactPath)
+	if len(result.ClasspathJars) > 0 {
+		fmt.Printf("  %s %d dependencies resolved\n", primaryTextStyle("deps"), len(result.ClasspathJars))
+	}
+	return nil
 }
 
 func ensureJavaLink(projectRoot, mvnDir string) error {
@@ -139,10 +174,18 @@ func renderPomFromManifest(m *core.Manifest) string {
 		fmt.Fprintf(b, "      <groupId>%s</groupId>\n", d.GroupID)
 		fmt.Fprintf(b, "      <artifactId>%s</artifactId>\n", d.ArtifactID)
 		fmt.Fprintf(b, "      <version>%s</version>\n", d.Version)
-		if d.Scope != "" { fmt.Fprintf(b, "      <scope>%s</scope>\n", d.Scope) }
-		if d.Type != "" { fmt.Fprintf(b, "      <type>%s</type>\n", d.Type) }
-		if d.Classifier != "" { fmt.Fprintf(b, "      <classifier>%s</classifier>\n", d.Classifier) }
-		if d.Optional { fmt.Fprintf(b, "      <optional>true</optional>\n") }
+		if d.Scope != "" {
+			fmt.Fprintf(b, "      <scope>%s</scope>\n", d.Scope)
+		}
+		if d.Type != "" {
+			fmt.Fprintf(b, "      <type>%s</type>\n", d.Type)
+		}
+		if d.Classifier != "" {
+			fmt.Fprintf(b, "      <classifier>%s</classifier>\n", d.Classifier)
+		}
+		if d.Optional {
+			fmt.Fprintf(b, "      <optional>true</optional>\n")
+		}
 		fmt.Fprintf(b, "    </dependency>\n")
 	}
 	fmt.Fprintf(b, "  </dependencies>\n")
@@ -167,11 +210,175 @@ func runMavenPackage(mvnDir, logPath string) error {
 
 func copyFile(src, dst string) error {
 	in, err := os.Open(src)
-	if err != nil { return err }
+	if err != nil {
+		return err
+	}
 	defer in.Close()
 	out, err := os.Create(dst)
-	if err != nil { return err }
-	defer func(){ _ = out.Close() }()
-	if _, err := io.Copy(out, in); err != nil { return err }
+	if err != nil {
+		return err
+	}
+	defer func() { _ = out.Close() }()
+	if _, err := io.Copy(out, in); err != nil {
+		return err
+	}
 	return out.Sync()
+}
+
+func fallbackBuildWithoutMaven(projectRoot, logsDir, outJar string, depJars []string) error {
+	javacPath, err := exec.LookPath("javac")
+	if err != nil {
+		return fmt.Errorf("javac not found on PATH (install JDK or Maven)")
+	}
+
+	srcDir := filepath.Join(projectRoot, "src")
+	javaFiles, err := collectJavaFiles(srcDir)
+	if err != nil {
+		return err
+	}
+	if len(javaFiles) == 0 {
+		return fmt.Errorf("no Java sources found under %s", srcDir)
+	}
+
+	classesDir := filepath.Join(projectRoot, ".jpm", "tmp", "classes")
+	if err := os.RemoveAll(classesDir); err != nil {
+		return err
+	}
+	if err := os.MkdirAll(classesDir, 0o755); err != nil {
+		return err
+	}
+
+	javacLog := filepath.Join(logsDir, fmt.Sprintf("build-javac-%d.log", time.Now().Unix()))
+	var compileBuf bytes.Buffer
+	args := []string{"-d", classesDir}
+	if len(depJars) > 0 {
+		args = append(args, "-classpath", strings.Join(depJars, string(os.PathListSeparator)))
+	}
+	args = append(args, javaFiles...)
+	compileCmd := exec.Command(javacPath, args...)
+	compileCmd.Stdout = &compileBuf
+	compileCmd.Stderr = &compileBuf
+	if err := compileCmd.Run(); err != nil {
+		_ = os.WriteFile(javacLog, compileBuf.Bytes(), 0o644)
+		return fmt.Errorf("javac compilation failed (see %s)", javacLog)
+	}
+	if compileBuf.Len() > 0 {
+		_ = os.WriteFile(javacLog, compileBuf.Bytes(), 0o644)
+	}
+
+	jarPath, err := exec.LookPath("jar")
+	if err != nil {
+		return fmt.Errorf("jar tool not found on PATH; install a full JDK")
+	}
+	jarLog := filepath.Join(logsDir, fmt.Sprintf("build-jar-%d.log", time.Now().Unix()))
+	var jarBuf bytes.Buffer
+	jarCmd := exec.Command(jarPath, "cf", outJar, "-C", classesDir, ".")
+	jarCmd.Stdout = &jarBuf
+	jarCmd.Stderr = &jarBuf
+	if err := jarCmd.Run(); err != nil {
+		_ = os.WriteFile(jarLog, jarBuf.Bytes(), 0o644)
+		return fmt.Errorf("jar packaging failed (see %s)", jarLog)
+	}
+	if jarBuf.Len() > 0 {
+		_ = os.WriteFile(jarLog, jarBuf.Bytes(), 0o644)
+	}
+
+	return nil
+}
+
+func collectJavaFiles(root string) ([]string, error) {
+	if _, err := os.Stat(root); err != nil {
+		if os.IsNotExist(err) {
+			return nil, nil
+		}
+		return nil, err
+	}
+
+	var files []string
+	err := filepath.WalkDir(root, func(path string, d fs.DirEntry, err error) error {
+		if err != nil {
+			return err
+		}
+		if d.IsDir() {
+			return nil
+		}
+		if strings.EqualFold(filepath.Ext(path), ".java") {
+			files = append(files, path)
+		}
+		return nil
+	})
+	if err != nil {
+		return nil, err
+	}
+	return files, nil
+}
+
+func ensureDependencyJars(projectRoot string, deps []core.Dependency) ([]string, error) {
+	cacheRoot := filepath.Join(projectRoot, ".jpm", "cache")
+	var jars []string
+	for _, dep := range deps {
+		group := strings.TrimSpace(dep.GroupID)
+		artifact := strings.TrimSpace(dep.ArtifactID)
+		version := strings.TrimSpace(dep.Version)
+		if group == "" || artifact == "" || version == "" {
+			continue
+		}
+		packaging := strings.TrimSpace(dep.Type)
+		if packaging == "" {
+			packaging = "jar"
+		}
+		if packaging != "jar" {
+			continue
+		}
+
+		classifier := strings.TrimSpace(dep.Classifier)
+		fileName := artifact + "-" + version
+		if classifier != "" {
+			fileName += "-" + classifier
+		}
+		fileName += "." + packaging
+
+		groupPath := strings.ReplaceAll(group, ".", "/")
+		destDir := filepath.Join(cacheRoot, groupPath, artifact, version)
+		destPath := filepath.Join(destDir, fileName)
+
+		if info, err := os.Stat(destPath); err == nil && info.Size() > 0 {
+			jars = append(jars, destPath)
+			continue
+		}
+
+		if err := os.MkdirAll(destDir, 0o755); err != nil {
+			return nil, err
+		}
+
+		url := fmt.Sprintf("https://repo1.maven.org/maven2/%s/%s/%s/%s", groupPath, artifact, version, fileName)
+		resp, err := http.Get(url)
+		if err != nil {
+			return nil, fmt.Errorf("download %s: %w", url, err)
+		}
+		if resp.StatusCode != http.StatusOK {
+			resp.Body.Close()
+			return nil, fmt.Errorf("failed to download %s: %s", url, resp.Status)
+		}
+		tmpPath := destPath + ".tmp"
+		out, err := os.Create(tmpPath)
+		if err != nil {
+			resp.Body.Close()
+			return nil, err
+		}
+		if _, err := io.Copy(out, resp.Body); err != nil {
+			out.Close()
+			resp.Body.Close()
+			_ = os.Remove(tmpPath)
+			return nil, err
+		}
+		out.Close()
+		resp.Body.Close()
+		if err := os.Rename(tmpPath, destPath); err != nil {
+			return nil, err
+		}
+
+		jars = append(jars, destPath)
+	}
+	return jars, nil
 }

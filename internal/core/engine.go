@@ -27,15 +27,15 @@ type Context struct {
 
 // BuildPlan describes what to build.
 type BuildPlan struct {
-	Manifest   Manifest // parsed jpm.yaml
-	Targets    []string // e.g., ["jar"], future: ["jar","sources","javadoc"]
-	Incremental bool    // attempt incremental build
+	Manifest    Manifest // parsed jpm.yaml
+	Targets     []string // e.g., ["jar"], future: ["jar","sources","javadoc"]
+	Incremental bool     // attempt incremental build
 }
 
 // BuildResult summarizes outputs.
 type BuildResult struct {
-	Artifacts []Artifact // produced artifacts
-	Warnings  []string
+	Artifacts  []Artifact // produced artifacts
+	Warnings   []string
 	DurationMs int64
 }
 
@@ -47,7 +47,7 @@ type Artifact struct {
 
 // RunSpec configures execution.
 type RunSpec struct {
-	Manifest Manifest
+	Manifest  Manifest
 	MainClass string   // optional; engine may auto-detect
 	Args      []string // program args
 	JvmArgs   []string // VM args
@@ -85,28 +85,28 @@ const (
 )
 
 type DepsResult struct {
-	Deps      []Dependency
-	Tree      *DependencyTree
-	Changed   bool
-	Warnings  []string
+	Deps     []Dependency
+	Tree     *DependencyTree
+	Changed  bool
+	Warnings []string
 }
 
 // Manifest is the in-memory shape parsed from jpm.yaml (minimal for prototype).
 // Extend as needed alongside the YAML schema.
 type Manifest struct {
-	Name       string
-	BuildTool  string // user-facing label (e.g., "maven")
-	Engine     string // internal engine key (e.g., "maven", "native")
-	Java       struct {
-		Version string
-	}
-	Project    struct {
-		GroupID    string
-		ArtifactID string
-		Version    string
-	}
+	Name      string `yaml:"name"`
+	BuildTool string `yaml:"build_tool"` // user-facing label (e.g., "maven")
+	Engine    string `yaml:"engine"`     // internal engine key (e.g., "maven", "native")
+	Java      struct {
+		Version string `yaml:"version"`
+	} `yaml:"java"`
+	Project struct {
+		GroupID    string `yaml:"group_id"`
+		ArtifactID string `yaml:"artifact_id"`
+		Version    string `yaml:"version"`
+	} `yaml:"project"`
 	App struct {
 		MainClass string `yaml:"main_class"`
 	} `yaml:"app"`
-	Dependencies []Dependency
+	Dependencies []Dependency `yaml:"dependencies"`
 }

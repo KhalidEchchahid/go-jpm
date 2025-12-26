@@ -34,9 +34,13 @@ var runCmd = &cobra.Command{
 		}
 		// Determine jar path
 		artifactID := m.Project.ArtifactID
-		if artifactID == "" { artifactID = "app" }
+		if artifactID == "" {
+			artifactID = "app"
+		}
 		version := m.Project.Version
-		if version == "" { version = "0.1.0-SNAPSHOT" }
+		if version == "" {
+			version = "0.1.0-SNAPSHOT"
+		}
 		jar := filepath.Join(abs, ".jpm", "out", fmt.Sprintf("%s-%s.jar", artifactID, version))
 		if _, statErr := os.Stat(jar); statErr != nil {
 			// Try building first
@@ -44,6 +48,20 @@ var runCmd = &cobra.Command{
 				return fmt.Errorf("build failed: %v", buildErr)
 			}
 		}
+		classpathEntries := []string{jar}
+		cpFile := filepath.Join(abs, ".jpm", "out", "classpath")
+		if data, err := os.ReadFile(cpFile); err == nil {
+			extra := strings.TrimSpace(string(data))
+			if extra != "" {
+				for _, entry := range strings.Split(extra, string(os.PathListSeparator)) {
+					entry = strings.TrimSpace(entry)
+					if entry != "" {
+						classpathEntries = append(classpathEntries, entry)
+					}
+				}
+			}
+		}
+		classpath := strings.Join(classpathEntries, string(os.PathListSeparator))
 		// Ensure main class
 		mainClass := strings.TrimSpace(m.App.MainClass)
 		if mainClass == "" {
@@ -61,7 +79,7 @@ var runCmd = &cobra.Command{
 		if _, err := exec.LookPath("java"); err != nil {
 			return fmt.Errorf("java not found on PATH; install JDK and retry")
 		}
-		cmdExec := exec.Command("java", "-cp", jar, mainClass)
+		cmdExec := exec.Command("java", "-cp", classpath, mainClass)
 		cmdExec.Stdout = os.Stdout
 		cmdExec.Stderr = os.Stderr
 		cmdExec.Stdin = os.Stdin

@@ -1,0 +1,19 @@
+name: native_test
+build_tool: maven
+engine: native
+java:
+    version: "21"
+project:
+    group_id: com.example
+    artifact_id: native-test
+    version: 1.0.0
+app:
+    main_class: Main
+dependencies:
+    - group_id: com.google.guava
+      artifact_id: guava
+      version: 33.1.0-jre
+      type: ""
+      scope: ""
+      classifier: ""
+      optional: false

@@ -1,8 +1,11 @@
 package main
 
 import (
+	"errors"
 	"fmt"
+	"os"
 	"path/filepath"
+	"strings"
 
 	"github.com/KhalidEchchahid/go-jpm/internal/core"
 	"github.com/KhalidEchchahid/go-jpm/internal/inspectors"
@@ -33,15 +36,37 @@ var depsTreeCmd = &cobra.Command{
 			return fmt.Errorf("failed to get absolute path: %w", err)
 		}
 
-		factory := inspectors.NewFactory()
-		inspector, err := factory.ForTool(buildTool)
-		if err != nil {
-			return err
-		}
+		manifest, _, mErr := core.LoadManifest(projectRoot)
+		var tree *core.DependencyTree
+		var warnings []string
 
-		tree, err := inspector.DependencyTree(projectRoot)
-		if err != nil {
-			return err
+		if mErr == nil && manifest != nil {
+			if manifest.Project.GroupID == "" || manifest.Project.ArtifactID == "" {
+				return fmt.Errorf("manifest is missing project.group_id or project.artifact_id")
+			}
+			rootCoord := fmt.Sprintf("%s:%s:%s", manifest.Project.GroupID, manifest.Project.ArtifactID, manifest.Project.Version)
+			node := &core.DependencyNode{Coordinate: rootCoord}
+			deps := make([]core.Dependency, len(manifest.Dependencies))
+			copy(deps, manifest.Dependencies)
+			for _, dep := range deps {
+				child := &core.DependencyNode{Coordinate: dependencyCoordinateForTree(dep)}
+				node.Children = append(node.Children, child)
+			}
+			tree = &core.DependencyTree{Root: node, Warnings: []string{"displaying direct dependencies from manifest (transitives require build sync)"}}
+			warnings = tree.Warnings
+		} else {
+			if mErr != nil && !errors.Is(mErr, os.ErrNotExist) {
+				return mErr
+			}
+			factory := inspectors.NewFactory()
+			inspector, err := factory.ForTool(buildTool)
+			if err != nil {
+				return err
+			}
+			tree, err = inspector.DependencyTree(projectRoot)
+			if err != nil {
+				return err
+			}
 		}
 
 		fmt.Println(headerStyle("→ dependency tree:"))
@@ -49,7 +74,7 @@ var depsTreeCmd = &cobra.Command{
 			fmt.Println(subduedStyle("  (no dependency information)"))
 			return nil
 		}
-		for _, warning := range tree.Warnings {
+		for _, warning := range warnings {
 			fmt.Printf("  %s %s\n", warningIconStyle("!"), warningTextStyle(warning))
 		}
 
@@ -86,4 +111,23 @@ func renderDependencyChildren(children []*core.DependencyNode, prefix string) {
 			renderDependencyChildren(child.Children, nextPrefix)
 		}
 	}
+}
+
+func dependencyCoordinateForTree(dep core.Dependency) string {
+	parts := []string{strings.TrimSpace(dep.GroupID), strings.TrimSpace(dep.ArtifactID)}
+	packaging := strings.TrimSpace(dep.Type)
+	if packaging == "" {
+		packaging = "jar"
+	}
+	parts = append(parts, packaging)
+	version := strings.TrimSpace(dep.Version)
+	if version == "" {
+		version = "unspecified"
+	}
+	parts = append(parts, version)
+	coord := strings.Join(parts, ":")
+	if dep.Scope != "" {
+		coord = fmt.Sprintf("%s:%s", coord, dep.Scope)
+	}
+	return coord
 }
