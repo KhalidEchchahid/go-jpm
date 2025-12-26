@@ -1,0 +1,118 @@
+\documentclass[aspectratio=169]{beamer}
+
+\usetheme{Madrid}
+\usecolortheme{default}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{booktabs}
+\usepackage{hyperref}
+
+	itle[JPM Native]{JPM --- Moteur natif (Phase 2)}
+\subtitle{Simulation Scrum (Gestion de Projet) : blocages, correctifs, performances vs Maven}
+\author{Équipe projet (go-jpm)}
+\date{26 décembre 2025}
+
+\begin{document}
+
+\begin{frame}
+  \titlepage
+\end{frame}
+
+\begin{frame}{Contexte (Gestion de Projet) \& objectifs}
+\begin{itemize}
+  \item Simulation Scrum : enseignant = manager/validateur, équipe = dev
+  \item Produit : CLI \texttt{jpm} (Go) pour projets Java
+  \item Objectif technique : \textbf{moteur natif} (sans \texttt{mvn})
+  \item Objectif projet : incréments livrables + traçabilité (tests, docs, bench)
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Ce que nous avons construit}
+\begin{itemize}
+  \item Pipeline natif : \texttt{resolve} $\rightarrow$ \texttt{fetch} $\rightarrow$ \texttt{compile} $\rightarrow$ \texttt{package}
+  \item Résolution Maven : POM + transitifs (graphe)
+  \item Téléchargement Maven Central + cache disque
+  \item Compilation via \texttt{javac}
+  \item Packaging JAR déterministe + lockfile \texttt{jpm.lock.yaml}
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Principaux blocages (POMs réels) et correctifs}
+\begin{enumerate}
+  \item \textbf{Interpolation de propriétés}: versions \texttt{${hamcrestVersion}}
+    \begin{itemize}
+      \item Correctif : parse \texttt{<properties>} + substitution \texttt{${...}}
+    \end{itemize}
+  \item \textbf{Encodages non UTF-8}: ISO-8859-1 déclaré
+    \begin{itemize}
+      \item Correctif : XML decoder + conversion d’encodage
+    \end{itemize}
+  \item \textbf{Versions manquantes}: dépendances gérées par \texttt{dependencyManagement}
+    \begin{itemize}
+      \item Symptôme : coordonnées invalides (version vide) $\rightarrow$ retries HTTP
+      \item Correctif : filtrer les deps sans version (en attendant DM)
+    \end{itemize}
+\end{enumerate}
+\end{frame}
+
+\begin{frame}{Performance : protocole de benchmark}
+\begin{itemize}
+  \item Fixtures : \texttt{bench/projects} (small/medium/large)
+  \item \texttt{RUNS=10} ; métriques \textbf{warm} = runs 2..10
+  \item Comparaison Maven : ``bridge'' (\texttt{mvn package}) sur copie temporaire
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Performance : résultats (RUNS=10, 20:42 UTC)}
+\small
+\begin{tabular}{lrrr}
+\toprule
+	extbf{Projet} & \textbf{Native warm mean (ms)} & \textbf{Maven warm mean (ms)} & \textbf{Gagnant}\\
+\midrule
+small  & 391  & 2021 & Native\\
+medium & 617  & 2374 & Native\\
+large  & 5307 & 2692 & Maven\\
+\bottomrule
+\end{tabular}
+
+\vspace{0.5em}
+\normalsize
+\begin{itemize}
+  \item Gain majeur : suppression des retries sur coordonnées invalides
+  \item Ajout : téléchargement d’artefacts en parallèle (pool borné)
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Pourquoi Maven gagne encore sur \textit{large}}
+\begin{itemize}
+  \item Le coût restant est dominé par la compilation à l’échelle
+  \item Classpath peut contenir plusieurs versions d’un même artefact
+  \item Maven : compilation incrémentale + gestion de versions mature
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Backlog (si plus de temps)}
+\begin{itemize}
+  \item Support \texttt{dependencyManagement}
+  \item Déduplication/choix de version effectif du classpath (nearest-wins)
+  \item Paralléliser la résolution POM (concurrence bornée)
+  \item Compilation incrémentale
+\end{itemize}
+\end{frame}
+
+\begin{frame}{Reproductibilité}
+\begin{itemize}
+  \item Bench: \texttt{RUNS=10 bench/bench.sh}
+  \item Résultats: \texttt{bench/results/latest/bench.json}
+\end{itemize}
+\end{frame}
+
+\begin{frame}
+  \centering
+  \large Questions?
+\end{frame}
+
+\end{document}

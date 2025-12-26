@@ -1,0 +1,13 @@
+name: bench_small
+build_tool: maven
+engine: native
+java:
+  version: "21"
+project:
+  group_id: bench
+  artifact_id: bench-small
+  version: 0.1.0
+app:
+  main_class: Main
+# Keep deps empty for a clean compiler+packager baseline.
+dependencies: []

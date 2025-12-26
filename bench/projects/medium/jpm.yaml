@@ -1,0 +1,21 @@
+name: bench_medium
+build_tool: maven
+engine: native
+java:
+  version: "21"
+project:
+  group_id: bench
+  artifact_id: bench-medium
+  version: 0.1.0
+app:
+  main_class: Main
+# A few common deps to exercise resolver+fetcher+classpath generation.
+dependencies:
+  - group_id: org.apache.commons
+    artifact_id: commons-lang3
+    version: "3.14.0"
+    scope: compile
+  - group_id: com.google.guava
+    artifact_id: guava
+    version: "33.0.0-jre"
+    scope: compile

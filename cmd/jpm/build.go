@@ -225,21 +225,44 @@ func buildNative(projectRoot string, m *core.Manifest, verbose bool) error {
 		if verbose {
 			fmt.Printf("  %s fetching %d JAR files\n", subduedStyle("resolve"), len(graph.Nodes))
 		}
-		for gav := range graph.Nodes {
-			parts := parseGAV(gav)
-			if len(parts) >= 3 {
-				groupID := parts[0]
-				artifactID := parts[1]
-				version := parts[2]
-				classifier := ""
-				if len(parts) > 3 {
-					classifier = parts[3]
-				}
+		// Build list of artifact GAVs. Classifiers are uncommon; for now we fetch
+		// the base JARs in parallel and fall back to sequential for classifier cases.
+		gavs := make([]string, 0, len(graph.Nodes))
+		classifierNodes := make([]*resolver.Node, 0)
+		for _, node := range graph.Nodes {
+			if node == nil || !node.Resolved {
+				continue
+			}
+			if node.Classifier != "" {
+				classifierNodes = append(classifierNodes, node)
+				continue
+			}
+			gavs = append(gavs, fmt.Sprintf("%s:%s:%s", node.GroupID, node.ArtifactID, node.Version))
+		}
 
-				_, err := f.FetchArtifact(ctx, fmt.Sprintf("%s:%s:%s", groupID, artifactID, version), classifier)
-				if err != nil && verbose {
-					fmt.Printf("  ⚠ Failed to fetch JAR %s: %v\n", gav, err)
+		// Parallel fetch for base artifacts.
+		if len(gavs) > 0 {
+			pf := fetcher.NewParallelFetcher(f, 8, verbose)
+			if _, err := pf.FetchArtifactsParallel(ctx, gavs); err != nil {
+				// Don't fail the build; fall back to sequential fetch with warnings.
+				if verbose {
+					fmt.Printf("  ⚠ parallel fetch failed; falling back to sequential: %v\n", err)
 				}
+				for _, gav := range gavs {
+					_, ferr := f.FetchArtifact(ctx, gav, "")
+					if ferr != nil && verbose {
+						fmt.Printf("  ⚠ Failed to fetch JAR %s: %v\n", gav, ferr)
+					}
+				}
+			}
+		}
+
+		// Sequential fetch for classifier artifacts (kept separate for now).
+		for _, node := range classifierNodes {
+			gav := fmt.Sprintf("%s:%s:%s", node.GroupID, node.ArtifactID, node.Version)
+			_, err := f.FetchArtifact(ctx, gav, node.Classifier)
+			if err != nil && verbose {
+				fmt.Printf("  ⚠ Failed to fetch JAR %s:%s: %v\n", gav, node.Classifier, err)
 			}
 		}
 	} else {

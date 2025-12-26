@@ -1,0 +1,63 @@
+lockfile_format: 1
+created_at: "2025-12-26T20:41:32Z"
+tool_version: 0.0.1
+resolver: native
+repositories:
+    - id: maven-central
+      url: https://repo.maven.apache.org/maven2
+dependencies:
+    - gav: ch.qos.logback:logback-classic:1.5.12
+      scope: compile
+      optional: false
+      parents:
+        - root
+    - gav: com.fasterxml.jackson.core:jackson-databind:2.17.2
+      scope: compile
+      optional: false
+      parents:
+        - root
+    - gav: io.micrometer:micrometer-commons:1.12.11
+      scope: compile
+      optional: false
+      parents:
+        - io.micrometer:micrometer-observation:1.12.11
+    - gav: io.micrometer:micrometer-observation:1.12.11
+      scope: compile
+      optional: false
+      parents:
+        - org.springframework:spring-context:6.1.14
+    - gav: org.slf4j:slf4j-api:2.0.16
+      scope: compile
+      optional: false
+      parents:
+        - root
+    - gav: org.springframework:spring-aop:6.1.14
+      scope: compile
+      optional: false
+      parents:
+        - org.springframework:spring-context:6.1.14
+    - gav: org.springframework:spring-beans:6.1.14
+      scope: compile
+      optional: false
+      parents:
+        - org.springframework:spring-context:6.1.14
+    - gav: org.springframework:spring-context:6.1.14
+      scope: compile
+      optional: false
+      parents:
+        - root
+    - gav: org.springframework:spring-core:6.1.14
+      scope: compile
+      optional: false
+      parents:
+        - root
+    - gav: org.springframework:spring-expression:6.1.14
+      scope: compile
+      optional: false
+      parents:
+        - org.springframework:spring-context:6.1.14
+    - gav: org.springframework:spring-jcl:6.1.14
+      scope: compile
+      optional: false
+      parents:
+        - org.springframework:spring-core:6.1.14

@@ -3,6 +3,7 @@ package build
 import (
 	"context"
 	"fmt"
+	"os"
 	"path/filepath"
 	"time"
 
@@ -97,18 +98,23 @@ func (b *Builder) Build(
 		return result, err
 	}
 
-	packageResult, _ := b.packager.PackageWithResult(
-		ctx,
-		classesDir,
-		outputDir,
-		b.config.ProjectName,
-		b.config.Version,
-		b.config.MainClass,
-	)
-	result.PackageResult = packageResult
+	// Avoid double-packaging: PackageWithResult would call Package again.
+	stat, statErr := os.Stat(jarPath)
+	if statErr == nil {
+		result.PackageResult = &packager.PackageResult{
+			JAR:       jarPath,
+			Size:      stat.Size(),
+			MainClass: b.config.MainClass,
+			Duration:  0,
+		}
+	}
 
 	if b.config.Verbose {
-		fmt.Printf("Packaged to: %s (%d bytes)\n", jarPath, packageResult.Size)
+		if result.PackageResult != nil {
+			fmt.Printf("Packaged to: %s (%d bytes)\n", jarPath, result.PackageResult.Size)
+		} else {
+			fmt.Printf("Packaged to: %s\n", jarPath)
+		}
 	}
 
 	result.Success = true

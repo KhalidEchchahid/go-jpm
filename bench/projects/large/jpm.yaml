@@ -1,0 +1,33 @@
+name: bench_large
+build_tool: maven
+engine: native
+java:
+  version: "21"
+project:
+  group_id: bench
+  artifact_id: bench-large
+  version: 0.1.0
+app:
+  main_class: Main
+# Larger dependency set (still reasonable) to stress resolver/fetch.
+dependencies:
+  - group_id: org.springframework
+    artifact_id: spring-core
+    version: "6.1.14"
+    scope: compile
+  - group_id: org.springframework
+    artifact_id: spring-context
+    version: "6.1.14"
+    scope: compile
+  - group_id: com.fasterxml.jackson.core
+    artifact_id: jackson-databind
+    version: "2.17.2"
+    scope: compile
+  - group_id: org.slf4j
+    artifact_id: slf4j-api
+    version: "2.0.16"
+    scope: compile
+  - group_id: ch.qos.logback
+    artifact_id: logback-classic
+    version: "1.5.12"
+    scope: compile

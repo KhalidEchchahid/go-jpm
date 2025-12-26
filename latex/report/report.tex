@@ -1,0 +1,175 @@
+\documentclass[11pt,a4paper]{article}
+
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[french]{babel}
+\usepackage{lmodern}
+\usepackage{geometry}
+\geometry{margin=2.5cm}
+
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{listings}
+\usepackage{xcolor}
+\usepackage{amsmath}
+
+\definecolor{codebg}{RGB}{248,248,248}
+\definecolor{codeframe}{RGB}{220,220,220}
+
+\lstset{
+  basicstyle=\ttfamily\small,
+  backgroundcolor=\color{codebg},
+  frame=single,
+  rulecolor=\color{codeframe},
+  breaklines=true,
+  columns=fullflexible
+}
+
+	itle{Rapport technique (Gestion de Projet)\\
+Simulation Scrum --- JPM \textit{Native Engine}}
+\author{Équipe projet (go-jpm)}
+\date{26 décembre 2025}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Ce rapport académique (cours \textit{Gestion de Projet}) présente une simulation de gestion de projet en méthode Scrum, avec l’enseignant jouant le rôle de manager (et, selon la dynamique pédagogique, assimilé aux rôles de \textit{Product Owner} et de validation). Le livrable technique est l’implantation d’un moteur de build «\,natif\,» pour le CLI JPM, implémenté en Go, capable de résoudre des dépendances Maven, de télécharger les artefacts, de compiler avec \texttt{javac} et de générer un JAR déterministe --- sans appeler Maven dans le mode natif. Le document synthétise l’architecture, les décisions, les sprints, les blocages rencontrés sur des POMs réels, les correctifs, et une campagne de benchmarks comparatifs vs Maven.
+\end{abstract}
+
+	ableofcontents
+\newpage
+
+\section{Contexte pédagogique et objectifs (simulation Scrum)}
+\subsection{Cadre}
+Le projet est mené comme une \textbf{simulation Scrum}:
+\begin{itemize}
+  \item \textbf{Manager / validateur}: l’enseignant, qui guide les priorités, valide les incréments et arbitre les compromis.
+  \item \textbf{Équipe de développement}: implémente, teste, documente et démontre.
+  \item \textbf{Backlog / sprints}: découpés en incréments livrables, avec mise en avant des risques, des blocages et des mesures.
+\end{itemize}
+
+\subsection{Objectifs techniques}
+\begin{itemize}
+  \item Livrer un pipeline de build «\,natif\,» (sans \texttt{mvn}) lorsque \texttt{engine: native}.
+  \item Assurer une résolution de dépendances robuste (POMs réels Maven Central).
+  \item Produire des livrables reproductibles: cache, lockfile, JAR déterministe.
+  \item Comparer les performances vs Maven sur trois tailles de projets.
+\end{itemize}
+
+\section{Présentation du produit JPM}
+JPM est un CLI en Go pour gérer des projets Java. En \textbf{mode natif}, JPM:
+\begin{enumerate}
+  \item récupère et parse des POMs depuis Maven Central,
+  \item construit un graphe de dépendances transitives,
+  \item télécharge les JARs dans un cache local,
+  \item compile les sources avec \texttt{javac},
+  \item package un JAR déterministe.
+\end{enumerate}
+
+\paragraph{Indépendance vis-à-vis de Maven.}
+Dans l’implémentation courante, \textbf{le mode natif n’invoque pas \texttt{mvn}}. Maven n’est utilisé que dans le \textit{chemin ``bridge''} quand le manifeste n’active pas \texttt{engine: native}.
+
+\section{Architecture technique}
+\subsection{Composants}
+\begin{itemize}
+  \item \textbf{Resolver} (\texttt{internal/engine/resolver}): parsing POM + résolution transitive (BFS)
+  \item \textbf{Fetcher} (\texttt{internal/engine/fetcher}): HTTP Maven Central + cache disque
+  \item \textbf{Compiler} (\texttt{internal/engine/compiler}): exécution de \texttt{javac}
+  \item \textbf{Packager} (\texttt{internal/engine/packager}): création JAR déterministe
+  \item \textbf{Builder} (\texttt{internal/engine/build}): orchestration \texttt{compile} $\rightarrow$ \texttt{package}
+  \item \textbf{Lockfile} (\texttt{internal/engine/lockfile}): génération \texttt{jpm.lock.yaml}
+\end{itemize}
+
+\subsection{Choix d’ingénierie (qualité / reproductibilité)}
+\begin{itemize}
+  \item Ordonnancement déterministe (sources triées, JAR reproductible).
+  \item Cache local des POMs/JARs.
+  \item Tests unitaires Go pour les composants critiques.
+  \item Journalisation ``verbose'' pour debug et démonstration.
+\end{itemize}
+
+\section{Sprints (frise Scrum) et production d’incréments}
+Cette section synthétise la logique ``Sprint'' et l’avancement (inspiré de la documentation Phase 2). Les incréments livrés visent un pipeline complet: générateurs, détection Java, resolver, fetcher, compiler, packager, puis intégration CLI.
+
+\subsection{Exemples d’incréments livrés}
+\begin{itemize}
+  \item Sprint ``Resolver core'': structure graphe, parsing POM, transitif.
+  \item Sprint ``Fetcher + cache'': téléchargement Maven Central, retries, cache.
+  \item Sprint ``Compiler + packager'': \texttt{javac} + JAR déterministe.
+  \item Sprint ``Native build end-to-end'': \texttt{jpm build} en mode natif.
+\end{itemize}
+
+\section{Blocages rencontrés (sur des POMs réels) et correctifs}
+\subsection{Blocage 1 --- Interpolation de propriétés Maven}
+	extbf{Symptôme}\,: des versions telles que \texttt{${hamcrestVersion}} n’étaient pas substituées, produisant des coordonnées invalides.
+
+	extbf{Correctif}\,: extraction des \texttt{<properties>} et substitution \texttt{${...}} lors du parsing.
+
+\subsection{Blocage 2 --- Encodages non UTF-8 dans des POMs}
+	extbf{Symptôme}\,: certains POMs Maven Central déclarent des encodages (ex. ISO-8859-1), ce qui provoquait des échecs de décodage XML.
+
+	extbf{Correctif}\,: utilisation d’un \texttt{xml.Decoder} avec un \texttt{CharsetReader}.
+
+\subsection{Blocage 3 --- Versions manquantes et tempête de retries HTTP}
+	extbf{Symptôme}\,: des dépendances transitives apparaissaient sans \texttt{<version>} (généralement gérées via \texttt{dependencyManagement}). Le resolver tentait alors de fetch \texttt{group:artifact:} (version vide), déclenchant des 404 et des retries, multipliés par le nombre de dépendances.
+
+	extbf{Correctif}\,: filtrage des dépendances sans \texttt{groupId/artifactId/version} (en attendant la prise en charge complète de \texttt{dependencyManagement}).
+
+\section{Performance: benchmarks comparatifs vs Maven}
+\subsection{Méthodologie}
+\begin{itemize}
+  \item Harness: \texttt{bench/bench.sh}
+  \item Projets de test: \texttt{bench/projects/{small,medium,large}}
+  \item Paramètres: \textbf{RUNS=10} ; métriques \textbf{warm} = runs 2..10
+  \item Source de vérité: \texttt{bench/results/latest/bench.json} (horodaté)
+\end{itemize}
+
+\subsection{Résultats (RUNS=10, 26/12/2025 20:42 UTC)}
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrrr}
+	oprule
+	extbf{Projet} & \textbf{Native warm mean (ms)} & \textbf{Maven warm mean (ms)} & \textbf{Gagnant} & \textbf{Interprétation}\\
+\midrule
+small  & 391  & 2021 & Native & Pas de coût de dépendances, overhead Maven important \\
+medium & 617  & 2374 & Native & Résolution stabilisée, compilation rapide \\
+large  & 5307 & 2692 & Maven  & Reste du travail: classpath/conflicts + compilation à l’échelle \\
+\bottomrule
+\end{tabular}
+\caption{Résumé des benchmarks (extrait de \texttt{bench/results/latest/bench.json}).}
+\end{table}
+
+\subsection{Analyse: pourquoi Maven était (initialement) beaucoup plus rapide}
+Le principal écart observé au départ ne venait pas de \texttt{javac} mais d’un problème de résolution: génération de coordonnées invalides à cause de versions manquantes, entraînant des retries HTTP coûteux. Après correction, le mode natif devient très compétitif sur small/medium.
+
+\section{Gestion des risques (vision Gestion de Projet)}
+\begin{longtable}{p{4cm}p{6.5cm}p{4cm}}
+	oprule
+	extbf{Risque} & \textbf{Impact} & \textbf{Mitigation}\\
+\midrule
+POMs réels hétérogènes (properties/encodage) & Échecs de résolution en production & Parsing permissif + tests + CharsetReader \\
+	exttt{dependencyManagement} non supporté & Versions manquantes, résolution incomplète & Filtrage sécurisé + backlog (implémentation DM) \\
+Performance sur gros graphes & Build plus lent que Maven & Parallélisme fetch, future sélection de versions (nearest-wins) \\
+\bottomrule
+\end{longtable}
+
+\section{Leçons apprises}
+\begin{itemize}
+  \item Les ``vrais'' POMs Maven Central contiennent des cas limites (properties, encodages, versions gérées).
+  \item Les benchmarks sont utiles uniquement si l’on élimine les faux négatifs (ex: retries invisibles).
+  \item Les optimisations à fort impact sont souvent des corrections de logique (filtrage, cache, déduplication), avant même des micro-optimisations.
+\end{itemize}
+
+\section{Reproductibilité}
+Commande de benchmark utilisée:\newline
+\begin{lstlisting}
+RUNS=10 bench/bench.sh
+\end{lstlisting}
+
+\section{Conclusion}
+Dans le cadre de la simulation Scrum, le projet a permis de livrer un ``increment'' technique complet: un moteur natif de build (sans Maven) fonctionnel, avec correctifs sur des blocages réalistes et une campagne de benchmarks reproductible. Les résultats montrent une avance nette du natif sur small/medium, et un retard restant sur large qui constitue une piste de backlog prioritaire (sélection de version effective pour classpath, support \texttt{dependencyManagement}, parallélisation de la résolution POM).
+
+\end{document}

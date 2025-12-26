@@ -1,0 +1,26 @@
+{
+  "timestamp_utc": "2025-12-26T20:42:01Z",
+  "os": "Linux",
+  "arch": "x86_64",
+  "go": "go version go1.25.2 linux/amd64",
+  "java": "openjdk version "25.0.1" 2025-10-21",
+  "maven": "Apache Maven 3.9.12 (848fbb4bf2d427b72bdb2471c22fced7ebd9a7a1)",
+  "runs": 10,
+  "projects": {
+    "small": {
+      "project": "/home/eamonamkassou/Work/go-jpm/bench/projects/small",
+      "native": {"status":"ok","mean_ms":390,"median_ms":389,"warm_mean_ms":391,"warm_median_ms":389},
+      "maven": {"status":"ok","mean_ms":1984,"median_ms":1999,"warm_mean_ms":2021,"warm_median_ms":2011}
+    },
+    "medium": {
+      "project": "/home/eamonamkassou/Work/go-jpm/bench/projects/medium",
+      "native": {"status":"ok","mean_ms":617,"median_ms":612,"warm_mean_ms":617,"warm_median_ms":612},
+      "maven": {"status":"ok","mean_ms":2337,"median_ms":2359,"warm_mean_ms":2374,"warm_median_ms":2366}
+    },
+    "large": {
+      "project": "/home/eamonamkassou/Work/go-jpm/bench/projects/large",
+      "native": {"status":"ok","mean_ms":4859,"median_ms":5295,"warm_mean_ms":5307,"warm_median_ms":5301},
+      "maven": {"status":"ok","mean_ms":2627,"median_ms":2666,"warm_mean_ms":2692,"warm_median_ms":2669}
+    }
+  }
+}
